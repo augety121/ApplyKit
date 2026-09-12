@@ -20,24 +20,30 @@ import (
 )
 
 type Job struct {
-	Crop          CropOptions `json:"crop"`
-	RenderMaxLong int         `json:"-"`
-	Mode          string      `json:"mode"`
-	Inputs        []string    `json:"inputs"`
-	Output        string      `json:"output"`
-	Format        string      `json:"format"`
-	Limit         int64       `json:"limit"`
-	Profile       string      `json:"profile"`
-	DPI           int         `json:"dpi"`
-	Pages         string      `json:"pages"`
-	Paper         string      `json:"paper"`
-	Strict        bool        `json:"strict"`
-	MakeZip       bool        `json:"makeZip"`
-	Consent       bool        `json:"consent"`
-	Progress      string      `json:"progress"`
-	Cancel        string      `json:"cancel"`
+	Crop          CropOptions          `json:"crop"`
+	RenderMaxLong int                  `json:"-"`
+	Mode          string               `json:"mode"`
+	Inputs        []string             `json:"inputs"`
+	Output        string               `json:"output"`
+	Format        string               `json:"format"`
+	Limit         int64                `json:"limit"`
+	Profile       string               `json:"profile"`
+	DPI           int                  `json:"dpi"`
+	Pages         string               `json:"pages"`
+	Paper         string               `json:"paper"`
+	Strict        bool                 `json:"strict"`
+	MakeZip       bool                 `json:"makeZip"`
+	Consent       bool                 `json:"consent"`
+	MaxEdge       int                  `json:"maxEdge"`
+	TrimImages    bool                 `json:"trimImages"`
+	Edits         map[string]ImageEdit `json:"edits,omitempty"`
+	Progress      string               `json:"progress"`
+	Cancel        string               `json:"cancel"`
+	Password      string               `json:"password,omitempty"`
 }
 type Record struct {
+	ID      string    `json:"id,omitempty"`
+	InputID string    `json:"inputId,omitempty"`
 	Crop    *CropInfo `json:"crop,omitempty"`
 	Input   string    `json:"input"`
 	Output  string    `json:"output"`
@@ -65,6 +71,7 @@ type Event struct {
 type Reporter struct {
 	mu                    sync.Mutex
 	f                     *os.File
+	emit                  func(Event)
 	Records               []Record
 	Success, Kept, Failed int
 }
@@ -72,13 +79,18 @@ type Reporter struct {
 func (r *Reporter) send(ev Event) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	b, e := json.Marshal(ev)
-	if e == nil {
-		b = append(b, '\n')
-		_, _ = r.f.Write(b)
+	if r.emit != nil {
+		r.emit(ev)
+	}
+	if r.f != nil {
+		if b, e := json.Marshal(ev); e == nil {
+			b = append(b, '\n')
+			_, _ = r.f.Write(b)
+		}
 	}
 }
 func (r *Reporter) add(rec Record) {
+	r.mu.Lock()
 	r.Records = append(r.Records, rec)
 	switch rec.Status {
 	case "saved":
@@ -88,6 +100,7 @@ func (r *Reporter) add(rec Record) {
 	default:
 		r.Failed++
 	}
+	r.mu.Unlock()
 	r.send(Event{Kind: "result", Record: &rec})
 }
 func (r *Reporter) fail(path string, e error) {
@@ -95,48 +108,14 @@ func (r *Reporter) fail(path string, e error) {
 }
 
 func runJob(job Job, assets string) int {
-	f, err := os.OpenFile(job.Progress, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0600)
-	if err != nil {
-		return 2
-	}
-	defer f.Close()
-	r := &Reporter{f: f}
-	fatal := func(e error) int { r.send(Event{Kind: "fatal", Message: e.Error()}); return 2 }
-	if job.Limit < 10000 || job.Limit > 100000000 {
-		return fatal(fmt.Errorf("大小上限应在 10KB～100MB 之间"))
-	}
-	if len(job.Inputs) == 0 || len(job.Inputs) > 200 {
-		return fatal(fmt.Errorf("每批应有 1～200 个文件"))
-	}
-	switch job.Mode {
-	case "pdf-images", "image-compress", "images-pdf", "pdf-compress":
-	default:
-		return fatal(fmt.Errorf("未知处理模式"))
-	}
-	if err = job.Crop.validate(); err != nil {
-		return fatal(err)
-	}
-	if job.Mode != "pdf-images" && job.Crop.mode() != "none" {
-		return fatal(fmt.Errorf("页面裁剪仅用于 PDF 转图片，不会隐式修改其他模式"))
-	}
-	if job.Mode == "pdf-compress" && !job.Consent {
-		return fatal(fmt.Errorf("请先确认扫描版 PDF 重建会丢失文本层和数字签名"))
-	}
-	if job.DPI != 150 && job.DPI != 200 && job.DPI != 300 {
-		job.DPI = 200
-	}
-	if job.Format == "" {
-		job.Format = "jpg"
-	}
-	if !filepath.IsAbs(job.Output) {
-		return fatal(fmt.Errorf("输出目录必须是完整的绝对路径"))
-	}
-	if err = os.MkdirAll(job.Output, 0700); err != nil {
-		return fatal(fmt.Errorf("无法创建输出目录：%w", err))
-	}
-	output, err := os.MkdirTemp(job.Output, "投递材料_"+time.Now().Format("20060102_150405")+"_")
-	if err != nil {
-		return fatal(err)
+	var f *os.File
+	if job.Progress != "" {
+		var err error
+		f, err = os.OpenFile(job.Progress, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0600)
+		if err != nil {
+			return 2
+		}
+		defer f.Close()
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -157,6 +136,57 @@ func runJob(job Job, assets string) int {
 			}
 		}()
 	}
+	return runJobCore(ctx, job, assets, &Reporter{f: f}, renderPDF)
+}
+
+func runJobContext(ctx context.Context, job Job, assets string, emit func(Event), renderer PDFRenderFunc) int {
+	if renderer == nil {
+		renderer = renderPDF
+	}
+	return runJobCore(ctx, job, assets, &Reporter{emit: emit}, renderer)
+}
+
+func runJobCore(ctx context.Context, job Job, assets string, r *Reporter, renderer PDFRenderFunc) int {
+	fatal := func(e error) int { r.send(Event{Kind: "fatal", Message: e.Error()}); return 2 }
+	if job.Limit < 1000 || job.Limit > 100000000 {
+		return fatal(fmt.Errorf("大小上限应在 1KB～100MB 之间"))
+	}
+	if len(job.Inputs) == 0 || len(job.Inputs) > 200 {
+		return fatal(fmt.Errorf("每批应有 1～200 个文件"))
+	}
+	switch job.Mode {
+	case "pdf-images", "image-compress", "images-pdf", "pdf-compress":
+	default:
+		return fatal(fmt.Errorf("未知处理模式"))
+	}
+	if err := job.Crop.validate(); err != nil {
+		return fatal(err)
+	}
+	if job.Mode != "pdf-images" && job.Crop.mode() != "none" {
+		return fatal(fmt.Errorf("页面裁剪仅用于 PDF 转图片，不会隐式修改其他模式"))
+	}
+	if job.Mode == "pdf-compress" && !job.Consent {
+		return fatal(fmt.Errorf("请先确认扫描版 PDF 重建会丢失文本层和数字签名"))
+	}
+	if job.DPI != 150 && job.DPI != 200 && job.DPI != 300 {
+		job.DPI = 200
+	}
+	if job.Format == "" {
+		job.Format = "jpg"
+	}
+	if job.MaxEdge < 0 || (job.MaxEdge > 0 && (job.MaxEdge < 64 || job.MaxEdge > 12000)) {
+		return fatal(fmt.Errorf("最长边应为 64～12000 像素，或 0"))
+	}
+	if !filepath.IsAbs(job.Output) {
+		return fatal(fmt.Errorf("输出目录必须是完整的绝对路径"))
+	}
+	if err := os.MkdirAll(job.Output, 0700); err != nil {
+		return fatal(fmt.Errorf("无法创建输出目录：%w", err))
+	}
+	output, err := os.MkdirTemp(job.Output, "ApplyKit_"+time.Now().Format("20060102_150405")+"_")
+	if err != nil {
+		return fatal(err)
+	}
 	begin := time.Now()
 	r.send(Event{Kind: "status", Message: "开始处理。原始文件不会被覆盖。", Output: output})
 	if job.Mode == "images-pdf" {
@@ -173,9 +203,9 @@ func runJob(job Job, assets string) int {
 			case "image-compress":
 				err = processImage(ctx, job, input, output, r)
 			case "pdf-images":
-				err = processPDFImages(ctx, job, input, output, assets, r)
+				err = processPDFImagesWithRenderer(ctx, job, input, output, assets, r, renderer)
 			case "pdf-compress":
-				err = processPDFCompress(ctx, job, input, output, assets, r)
+				err = processPDFCompressWithRenderer(ctx, job, input, output, assets, r, renderer)
 			}
 			if err != nil && !errors.Is(err, context.Canceled) {
 				r.fail(input, err)
@@ -186,23 +216,27 @@ func runJob(job Job, assets string) int {
 		r.fail("处理报告", err)
 	}
 	if job.MakeZip && ctx.Err() == nil {
-		r.send(Event{Kind: "status", Message: "正在整理 ZIP。ZIP 本身不受单张图片大小限制。"})
+		r.send(Event{Kind: "status", Message: "正在整理 ZIP。ZIP 仅用于整理，不适用于只接收图片的上传框。"})
 		if err = zipResults(output); err != nil {
 			r.fail("ZIP 打包", err)
 		}
 	}
 	r.send(Event{Kind: "complete", Output: output, Success: r.Success, Kept: r.Kept, Failed: r.Failed, Canceled: ctx.Err() != nil, Elapsed: time.Since(begin).Seconds()})
+	if ctx.Err() != nil {
+		return 1
+	}
 	return 0
 }
+
 func options(job Job, cap int64, format string) FitOptions {
 	minQ, minL := 65, 1400
 	switch job.Profile {
 	case "clear":
-		minQ = 78
-		minL = 1800
+		minQ, minL = 78, 1800
 	case "small":
-		minQ = 50
-		minL = 1000
+		minQ, minL = 50, 1000
+	case "tiny":
+		minQ, minL = 38, 720
 	}
 	return FitOptions{Limit: cap, Format: format, MaxQuality: 92, MinQuality: minQ, MinLong: minL}
 }
@@ -235,40 +269,92 @@ func processImage(ctx context.Context, job Job, input, out string, r *Reporter) 
 	if src.Animated {
 		return fmt.Errorf("检测到动态 GIF；为避免丢帧，未进行转换或压缩")
 	}
-	format := normalizeFormat(job.Format)
-	if format == "auto" {
-		format = src.Format
-	}
-	cap := min(budget(job), before-1)
-	fitted, err := fitImage(ctx, src.Image, options(job, cap, format))
+	prepared, info, edited, err := preparedImage(ctx, job, input, src)
 	if err != nil {
-		if ctx.Err() != nil {
-			return ctx.Err()
-		}
-		if before < job.Limit {
+		return err
+	}
+	format := normalizeFormat(job.Format)
+	sourceFormat := normalizeFormat(src.Format)
+	if format == "auto" {
+		format = sourceFormat
+	}
+	formatChanged := format != sourceFormat
+	mustShrink := !edited && !formatChanged
+	if job.Strict && (edited || formatChanged) {
+		mustShrink = true
+	}
+	cap := budget(job)
+	if mustShrink {
+		cap = min(cap, before-1)
+	}
+	if cap < 1000 {
+		if !edited && !formatChanged && before < job.Limit {
 			path, e := saveUnique(out, safeName(input)+"_原件保留."+src.Format, src.Bytes)
 			if e != nil {
 				return e
 			}
-			r.add(Record{Input: input, Output: path, Status: "unchanged", Before: before, After: before, Width: src.Image.Bounds().Dx(), Height: src.Image.Bounds().Dy(), Message: "原文件已在上限以内；无法在清晰度底线内继续缩小，保留原格式和原字节。未冒充压缩成功。"})
+			r.add(Record{Input: input, Output: path, Status: "unchanged", Before: before, After: before, Width: src.Image.Bounds().Dx(), Height: src.Image.Bounds().Dy(), Message: "原文件已很小且符合上限；保留原格式和原字节。"})
+			return nil
+		}
+		return fmt.Errorf("目标大小过小，无法在清晰度底线内处理")
+	}
+	fitted, err := fitImage(ctx, prepared, options(job, cap, format))
+	if err != nil {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		// Only a true, unedited same-format compression may keep the exact original.
+		if !edited && !formatChanged && before < job.Limit {
+			path, e := saveUnique(out, safeName(input)+"_原件保留."+src.Format, src.Bytes)
+			if e != nil {
+				return e
+			}
+			r.add(Record{Input: input, Output: path, Status: "unchanged", Before: before, After: before, Width: src.Image.Bounds().Dx(), Height: src.Image.Bounds().Dy(), Message: "原文件已在上限以内；无法在清晰度底线内继续缩小，保留原格式和原字节。"})
 			return nil
 		}
 		return err
 	}
-	if int64(len(fitted.Data)) >= before || int64(len(fitted.Data)) >= job.Limit {
+	after := int64(len(fitted.Data))
+	if after >= job.Limit {
 		return fmt.Errorf("最终大小校验未通过，没有导出")
+	}
+	if mustShrink && after >= before {
+		if !edited && !formatChanged && before < job.Limit {
+			path, e := saveUnique(out, safeName(input)+"_原件保留."+src.Format, src.Bytes)
+			if e != nil {
+				return e
+			}
+			r.add(Record{Input: input, Output: path, Status: "unchanged", Before: before, After: before, Width: src.Image.Bounds().Dx(), Height: src.Image.Bounds().Dy(), Message: "原文件已在上限以内；重新编码没有变小，保留原格式和原字节。"})
+			return nil
+		}
+		return fmt.Errorf("处理结果没有变小，没有导出")
+	}
+	if e := ctx.Err(); e != nil {
+		return e
 	}
 	ext := fitted.Format
 	if job.Format == "jpeg" {
 		ext = "jpeg"
 	}
-	path, err := saveUnique(out, safeName(input)+"_压缩."+ext, fitted.Data)
+	suffix := "_压缩"
+	if edited || formatChanged {
+		suffix = "_处理"
+	}
+	path, err := saveUnique(out, safeName(input)+suffix+"."+ext, fitted.Data)
 	if err != nil {
 		return err
 	}
-	r.add(Record{Input: input, Output: path, Status: "saved", Before: before, After: int64(len(fitted.Data)), Width: fitted.Width, Height: fitted.Height, Message: fitNote(fitted)})
+	note := fitNote(fitted)
+	if edited {
+		note += "；已应用裁剪 / 旋转 / 去白边 / 尺寸调整"
+	}
+	if info != nil {
+		note += cropNote(info)
+	}
+	r.add(Record{Input: input, Output: path, Status: "saved", Before: before, After: after, Width: fitted.Width, Height: fitted.Height, Message: note, Crop: info})
 	return nil
 }
+
 func processImagesPDF(ctx context.Context, job Job, out string, r *Reporter) error {
 	totalBefore := int64(0)
 	for _, p := range job.Inputs {
@@ -363,6 +449,7 @@ func renderPDF(ctx context.Context, job Job, input, assets string, callback func
 	// Arguments are passed without a shell; the PDF password is carried only in the
 	// inherited process environment, never a command line, job file, or report.
 	c := exec.CommandContext(ctx, powershell(), "-NoLogo", "-NoProfile", "-STA", "-ExecutionPolicy", "RemoteSigned", "-File", filepath.Join(assets, "render.ps1"), "-InputPath", input, "-OutputDir", tmp, "-Dpi", fmt.Sprint(job.DPI), "-Pages", job.Pages, "-CancelPath", job.Cancel, "-MaxLongEdge", fmt.Sprint(renderLongEdge(job)))
+	c.Env = append(os.Environ(), "APPLYKIT_PDF_PASSWORD="+job.Password)
 	hideCommand(c)
 	stdout, e := c.StdoutPipe()
 	if e != nil {
@@ -518,6 +605,11 @@ func processPDFImagesWithRenderer(ctx context.Context, job Job, input, out, asse
 				return er
 			}
 			cropped, info, er := applyPageCrop(ctx, src.Image, ev, job, plan, common)
+			if er == nil && job.MaxEdge > 0 && max(cropped.Bounds().Dx(), cropped.Bounds().Dy()) > job.MaxEdge {
+				w, h := cropped.Bounds().Dx(), cropped.Bounds().Dy()
+				long := max(w, h)
+				cropped, er = resizeLanczos(ctx, cropped, max(1, w*job.MaxEdge/long), max(1, h*job.MaxEdge/long))
+			}
 			if er != nil {
 				if ctx.Err() != nil {
 					return ctx.Err()
@@ -558,6 +650,9 @@ func processPDFImagesWithRenderer(ctx context.Context, job Job, input, out, asse
 	})
 }
 func processPDFCompress(ctx context.Context, job Job, input, out, assets string, r *Reporter) error {
+	return processPDFCompressWithRenderer(ctx, job, input, out, assets, r, renderPDF)
+}
+func processPDFCompressWithRenderer(ctx context.Context, job Job, input, out, assets string, r *Reporter, renderer PDFRenderFunc) error {
 	st, e := os.Stat(input)
 	if e != nil {
 		return e
@@ -568,7 +663,7 @@ func processPDFCompress(ctx context.Context, job Job, input, out, assets string,
 	var per int64
 	// Compression always uses all pages; silently dropping pages is not compression.
 	job.Pages = ""
-	e = renderPDF(ctx, job, input, assets, func(ev renderEvent) error {
+	e = renderer(ctx, job, input, assets, func(ev renderEvent) error {
 		switch ev.Kind {
 		case "meta":
 			if ev.Selected < 1 {

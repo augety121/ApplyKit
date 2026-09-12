@@ -1,0 +1,122 @@
+[
+  {
+    "boxes": {
+      "exportDock": {
+        "bottom": 768,
+        "height": 85,
+        "right": 1366,
+        "width": 1140,
+        "x": 226,
+        "y": 683
+      },
+      "queueCard": {
+        "bottom": 671,
+        "height": 447.859375,
+        "right": 893.40625,
+        "width": 649.40625,
+        "x": 244,
+        "y": 223.140625
+      },
+      "settingsCard": {
+        "bottom": 671,
+        "height": 269.859375,
+        "right": 1348,
+        "width": 441.59375,
+        "x": 906.40625,
+        "y": 401.140625
+      },
+      "sidePreviewCard": {
+        "bottom": 389.140625,
+        "height": 202,
+        "right": 1348,
+        "width": 441.59375,
+        "x": 906.40625,
+        "y": 187.140625
+      }
+    },
+    "height": 768,
+    "horizontalOverflow": false,
+    "queueOverflow": false,
+    "width": 1366
+  },
+  {
+    "boxes": {
+      "exportDock": {
+        "bottom": 768,
+        "height": 85,
+        "right": 1024,
+        "width": 952,
+        "x": 72,
+        "y": 683
+      },
+      "queueCard": {
+        "bottom": 671,
+        "height": 448.859375,
+        "right": 621.34375,
+        "width": 536.34375,
+        "x": 85,
+        "y": 222.140625
+      },
+      "settingsCard": {
+        "bottom": 671,
+        "height": 270.859375,
+        "right": 1011,
+        "width": 379.65625,
+        "x": 631.34375,
+        "y": 400.140625
+      },
+      "sidePreviewCard": {
+        "bottom": 388.140625,
+        "height": 202,
+        "right": 1011,
+        "width": 379.65625,
+        "x": 631.34375,
+        "y": 186.140625
+      }
+    },
+    "height": 768,
+    "horizontalOverflow": false,
+    "queueOverflow": false,
+    "width": 1024
+  },
+  {
+    "boxes": {
+      "exportDock": {
+        "bottom": 1024,
+        "height": 96,
+        "right": 1536,
+        "width": 1310,
+        "x": 226,
+        "y": 928
+      },
+      "queueCard": {
+        "bottom": 889,
+        "height": 600.203125,
+        "right": 995.40625,
+        "width": 751.40625,
+        "x": 244,
+        "y": 288.796875
+      },
+      "settingsCard": {
+        "bottom": 916,
+        "height": 389.203125,
+        "right": 1518,
+        "width": 509.59375,
+        "x": 1008.40625,
+        "y": 526.796875
+      },
+      "sidePreviewCard": {
+        "bottom": 514.796875,
+        "height": 266,
+        "right": 1518,
+        "width": 509.59375,
+        "x": 1008.40625,
+        "y": 248.796875
+      }
+    },
+    "height": 1024,
+    "horizontalOverflow": false,
+    "queueOverflow": false,
+    "width": 1536
+  }
+]

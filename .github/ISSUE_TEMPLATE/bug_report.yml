@@ -1,0 +1,32 @@
+name: Bug report / 问题反馈
+description: Report a reproducible problem without sharing private application materials.
+body:
+  - type: markdown
+    attributes:
+      value: 请勿上传身份证、真实简历、成绩单、密码或完整个人文件路径。优先使用仓库内测试样本复现。
+  - type: input
+    id: version
+    attributes:
+      label: ApplyKit version / 软件版本
+    validations:
+      required: true
+  - type: input
+    id: windows
+    attributes:
+      label: Windows version and display scaling / 系统版本与缩放
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce / 操作步骤
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Expected and actual result / 预期与实际结果
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Sanitized error text / 脱敏后的错误信息

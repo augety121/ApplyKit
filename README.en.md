@@ -1,52 +1,17 @@
-# ApplyKit
+# ApplyKit 2.2.0
 
-**Offline document preparation for application portals.**
+An offline Windows desktop workspace for preparing job-application PDFs and images.
 
-[中文](README.md) · [Architecture](docs/ARCHITECTURE.md) · [Testing scope](docs/TESTING.md)
+![Desktop workspace](docs/ui-v22-desktop.png)
 
-ApplyKit is a portable Windows x64 desktop utility for PDF-to-image conversion, page-margin cropping, image compression, image-to-PDF merging, and raster PDF rebuilding. It is designed around upload portals that accept JPG, JPEG, PNG or static GIF files below a strict size limit.
+Download `ApplyKit_Windows_x64_v2.2.0.zip` from [Releases](https://github.com/augety121/ApplyKit/releases), extract it, and run `ApplyKit.exe`. Windows 10/11 x64, Edge or Chrome, and Windows PowerShell 5.1 are required. End users do not need Go, Python or Node.js.
 
-## Run
+Features include PDF-to-image conversion, automatic/manual margin cropping, image crop/rotate/flip, image compression, image-to-PDF merging and scan-PDF reconstruction. Custom exclusive byte limits range from 1 KB to 100 MB (decimal units). Originals are never overwritten.
 
-Extract the release ZIP and launch `ApplyKit.exe`. End users do not need Go, Python, Node.js, a PDF converter or a web account. It targets Windows 10/11 x64 using the operating system's Windows PowerShell 5.1, WPF and Windows.Data.Pdf components. The UI is Chinese.
+Version 2.2 adds a light/dark responsive desktop layout, separate queue/results views, configurable physical crop margins, real automatic-crop previews, bundled synthetic examples, corrected rotate/flip previews and PDF size calculations, plus safer job and preview lifecycles.
 
-The application does not upload documents, make network requests, collect analytics or auto-update. It never overwrites input files. The included self-check uses synthetic samples only.
+Build with Go 1.23+ using `./build.ps1`. Run `node --test tests/geometry.test.mjs` and `tools/windows_smoke.ps1`; package with `tools/package.ps1`. CI uses Go 1.26 on Linux and Windows. See [acceptance](docs/ACCEPTANCE.md) for actual checks and limitations.
 
-**Validation notice:** the attached build was cross-compiled on Linux. Core tests and independently rendered fixtures were checked, but the Windows GUI and native PDF runtime have not been executed in the delivery environment. The native smoke test and CI workflows are provided, not represented as already passed. See `docs/TESTING.md`.
+Scan-PDF reconstruction and image merging produce image-only PDFs without searchable text, forms, links or digital signatures. Animated GIF and OCR are not supported. Review exported small text and stamps before submitting documents.
 
-## Crop before compression
-
-Automatic crop detects outer white margins and retains a physical safety margin. Uniform crop uses the union of content bounds from selected pages of the same PDF. Completely blank pages are retained; heterogeneous page sizes are not stretched into identical dimensions.
-
-The manual workbench supports drawing a keep-rectangle, dragging its edges/corners, moving it, percentage coordinates, keyboard nudging, per-page overrides and applying a frame to the same PDF. The crop result is previewed. Coordinates are normalized and the final export re-renders the PDF rather than reusing preview pixels. SHA-256 fingerprints reject stale manual plans after source changes.
-
-It does not remove internal whitespace, reorder document content, deskew scans or provide OCR. Very faint markings require visual inspection. Cropping is limited to PDF-to-image export, not silently applied to other modes.
-
-## File-size semantics
-
-The default exclusive limit is **2,000,000 bytes**, with a target of **1,900,000 bytes**. Compression output must be strictly smaller than its input. When further reduction is impossible and the original is already compliant, an unchanged byte-for-byte copy can be returned and explicitly labeled as retained.
-
-Format conversion does not inherently reduce size. The optional strict conversion guard additionally requires the aggregate output to be smaller than the source PDF or input images. Failed targets are not labeled as successful. Raster PDF rebuilding requires consent because text, forms, links and digital signatures are discarded.
-
-## Build
-
-Go 1.23 or newer is required for source builds; use a currently supported stable toolchain for public releases. There are no third-party Go modules. The Windows resource object is committed, so ordinary builds need no resource-generation tools.
-
-```powershell
-.\build.ps1
-```
-
-```bash
-GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build \
-  -trimpath -ldflags="-s -w -H=windowsgui" -o dist/ApplyKit.exe .
-go test -count=1 ./...
-go vet ./...
-```
-
-On real Windows, run `tools/windows_smoke.ps1` in Windows PowerShell 5.1 with `-STA`. CI uses a supported stable Go toolchain and publishes a release only after native smoke tests succeed. Interactive behavior and visual layout still require manual review.
-
-## Contribute and publish
-
-See `CONTRIBUTING.md`, `SECURITY.md` and `docs/RELEASE_CHECKLIST.md`. Do not commit personal application materials, identity documents, passwords, output reports or unredacted logs. Synthetic samples are included.
-
-MIT-licensed project code. Go runtime notices are included in `THIRD_PARTY_NOTICES.txt`. Windows components are provided by the operating system, not bundled.
+[中文说明](README.md) · [MIT License](LICENSE)

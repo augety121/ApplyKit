@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/><meta content="width=device-width,initial-scale=1" name="viewport"/>
+<meta content="light dark" name="color-scheme"/><meta content="#f7fbff" name="theme-color"/>
+<title>ApplyKit · 投递材料助手</title>
+<link href="/brand.svg" rel="icon" type="image/svg+xml"/><link href="/app.css" rel="stylesheet"/><link href="/desktop.css" rel="stylesheet"/>
+<script src="/app.js" type="module"></script>
+</head>
+<body>
+<div class="app-shell" id="appShell">
+<aside aria-label="工具导航" class="sidebar">
+<a aria-label="ApplyKit 材料工作台" class="brand" href="#"><img alt="" height="76" src="/brand.svg" width="76"/><span>ApplyKit<small>投递材料助手</small><em>让材料更出色 ✦</em></span></a>
+<nav class="primary-nav" id="toolNav">
+<button class="nav-item active" data-mode="pdf-images" title="PDF 转图片"><i data-icon="pdf"></i><span>PDF 转图片<small>支持裁剪、压缩、批量导出</small></span><b class="nav-dot"></b></button>
+<button class="nav-item" data-mode="image-compress" title="图片处理"><i data-icon="image"></i><span>图片压缩与编辑<small>裁剪 · 旋转 · 调整尺寸</small></span><b class="nav-dot"></b></button>
+<button class="nav-item" data-mode="images-pdf" title="图片合并 PDF"><i data-icon="layers"></i><span>图片合并 PDF<small>多图合并 · 调整顺序</small></span><b class="nav-dot"></b></button>
+<button class="nav-item" data-mode="pdf-compress" title="PDF 压缩"><i data-icon="compress"></i><span>PDF 压缩<small>扫描件减小体积</small></span><b class="nav-dot"></b></button>
+</nav>
+<div class="sidebar-divider"></div>
+<div class="sidebar-utility">
+<button class="side-help" id="settingsSide"><i data-icon="sliders"></i><span>设置</span></button>
+<button class="side-help" id="helpSide"><i data-icon="help"></i><span>帮助中心</span></button>
+<button class="side-help" id="aboutSide"><i data-icon="shield"></i><span>关于 ApplyKit</span></button>
+</div>
+<div class="sidebar-note"><i data-icon="shield"></i><strong>本地处理 · 保护隐私</strong><p>材料只在你的电脑中处理，不上传互联网，也不会覆盖原文件。</p></div>
+<div class="sidebar-bottom"><div class="sidebar-slogan"><strong>高效 · 简单 · 专业</strong><span>为每一次投递，少一点折腾。</span></div><div class="side-version"><span class="status-dot"></span><span id="sideVersion">ApplyKit 2.2.0</span><span class="version-tag">LOCAL</span></div></div>
+</aside>
+<main class="main">
+<div class="app-toolbar"><span class="app-caption"><img alt="" height="22" src="/brand.svg" width="22"/>ApplyKit <span>投递材料助手</span></span><div class="header-actions"><span class="local-badge"><i data-icon="shield"></i>本地离线处理</span><button aria-label="定位导出设置" class="icon-button" id="jumpSettings" title="定位导出设置"><i data-icon="sliders"></i></button><button aria-label="切换主题" class="icon-button" id="themeToggle" title="切换浅色 / 深色"><i data-icon="moon"></i></button><button aria-label="使用说明" class="icon-button" id="helpTop" title="使用说明"><i data-icon="help"></i></button></div></div>
+<header class="hero-banner topbar">
+<div class="hero-copy">
+<div class="hero-kicker"><span class="hero-mode-dot"></span><span id="heroKicker">材料转换工作台</span></div>
+<h1 id="pageTitle">PDF 转图片</h1>
+<p id="pageSubtitle">支持去空白裁剪、高质量导出、自定义大小限制，让材料更规范、更清晰。</p>
+<div aria-label="当前工具特性" class="hero-features">
+<span><i data-icon="crop"></i><b id="heroFeature1">智能裁剪</b><small id="heroFeatureSub1">自动去除空白边</small></span>
+<span><i data-icon="image"></i><b id="heroFeature2">多格式导出</b><small id="heroFeatureSub2">JPG / PNG / GIF</small></span>
+<span><i data-icon="tune"></i><b id="heroFeature3">自定义大小</b><small id="heroFeatureSub3">自由设置 KB/MB</small></span>
+<span><i data-icon="layers"></i><b id="heroFeature4">批量处理</b><small id="heroFeatureSub4">高效处理多文件</small></span>
+</div>
+</div>
+<div aria-hidden="true" class="hero-visual">
+<div class="hero-document"><span class="pdf-label">PDF</span><span></span><span></span><span></span></div>
+<div class="hero-arrow">→</div>
+<div class="hero-photo-stack"><div class="hero-photo back"><i></i></div><div class="hero-photo front"><i></i><b></b><span></span></div></div>
+<div class="hero-visual-text">轻松转换<br/><strong>高效投递</strong></div>
+</div>
+</header>
+<div aria-label="处理流程" class="workflow"><div class="step active" data-step="1"><b>1</b><span>添加材料</span></div><div class="step-line"></div><div class="step" data-step="2"><b>2</b><span>裁剪与调整<small>可选</small></span></div><div class="step-line"></div><div class="step" data-step="3"><b>3</b><span>设置大小</span></div><div class="step-line"></div><div class="step" data-step="4"><b>4</b><span>导出与检查</span></div></div>
+<div class="workspace" id="workspace">
+<div class="material-column">
+<div aria-label="材料与结果" class="work-tabs" role="tablist"><button aria-controls="queueCard" aria-selected="true" class="active" id="queueViewTab" role="tab"><i data-icon="folder"></i>待处理材料 <span id="queueTabCount">0</span></button><button aria-controls="resultsCard" aria-selected="false" id="resultsViewTab" role="tab"><i data-icon="checklist"></i>导出结果 <span id="resultsTabCount">0</span></button></div>
+<section class="card queue-card" data-layout-region="queue" id="queueCard">
+<div class="card-heading queue-heading"><div><h2><span class="heading-icon"><i data-icon="folder"></i></span>文件列表 <span class="count-badge" id="queueCount">0</span></h2><p id="queueDescription">支持批量添加 PDF，每页独立导出。</p></div><div class="queue-heading-actions"><button class="button primary small" id="addFiles"><i data-icon="plus"></i>添加文件</button><button class="button secondary small" id="addFolder"><i data-icon="folder"></i>添加文件夹</button></div></div>
+<div class="queue-tools" hidden="" id="queueTools"><label class="check-label"><input id="selectAll" type="checkbox"/><span id="selectionText">全选</span></label><div><button class="text-button" id="editSelected"><i data-icon="crop"></i>编辑所选</button><button aria-label="移除选中的材料" class="icon-button compact" id="removeSelected" title="移除选中的材料"><i data-icon="trash"></i></button><button class="text-button danger-text" id="clearQueue" title="只清空当前工具的材料"><i data-icon="trash"></i>清空列表</button></div></div>
+<div class="queue-table-head" hidden="" id="queueTableHead"><span></span><span>文件名</span><span>页数</span><span>大小</span><span>状态</span><span>操作</span></div>
+<button class="text-button example-button" id="loadExample"><i data-icon="sparkle"></i>载入示例，体验完整流程</button>
+<div aria-label="添加材料，或将文件拖到这里" class="empty-state" id="emptyState" role="button" tabindex="0">
+<div aria-hidden="true" class="empty-art"><div class="paper-back"></div><div class="paper-front"><i data-icon="file"></i><span class="paper-line"></span><span class="paper-line short"></span></div><div class="art-plus"><i data-icon="plus"></i></div></div>
+<h3>拖拽文件到这里，或点击添加文件</h3><p id="dropDescription">支持 PDF 文件 · 可批量添加</p><div class="empty-tags"><span><i data-icon="check"></i>保留原件</span><span><i data-icon="check"></i>逐个校验大小</span><span><i data-icon="check"></i>全程本地</span></div>
+</div>
+<div class="file-list" hidden="" id="fileList" role="list"></div>
+<button class="add-more" hidden="" id="addMoreFiles"><i data-icon="upload"></i><span>继续拖入文件，或点击添加</span></button>
+<div class="queue-footer" hidden="" id="queueFooter"><span><i data-icon="grip"></i>点击文件预览 · 拖动调整顺序</span><span id="queueTotal"></span></div>
+</section>
+<section class="card results-card" data-layout-region="results" hidden="" id="resultsCard">
+<div class="card-heading"><div><h2><span class="heading-icon result-icon"><i data-icon="checklist"></i></span>导出结果 <span class="count-badge" id="resultCount">0</span></h2><p id="resultDescription">真实字节数，清清楚楚，不把“未变小”当成功。</p></div><button class="text-button" disabled="" id="openFolder"><i data-icon="folder"></i>打开目录</button></div>
+<div class="results-empty" id="resultsEmpty"><div class="round-icon"><i data-icon="checklist"></i></div><div><strong>导出后，在这里做最后一次检查</strong><p>放大确认姓名、编号、小字和印章，再提交到招聘网站。</p></div></div>
+<div class="result-summary" hidden="" id="resultSummary"></div>
+<div class="result-list" hidden="" id="resultList"></div>
+<div class="result-actions" hidden="" id="resultActions"><span id="elapsedText"></span><button class="text-button" hidden="" id="retryFailed"><i data-icon="refresh"></i>只重试失败材料</button></div>
+</section>
+<div class="workspace-tip"><i data-icon="sparkle"></i><span id="workspaceTip">有白边的证书、成绩单，先裁剪再压缩，更容易保留清晰的正文。</span></div>
+</div>
+<div class="side-column">
+<section aria-label="材料预览" class="card preview-card" id="sidePreviewCard">
+<div class="preview-card-head"><h2>预览</h2><div class="preview-tabs"><button class="active" id="previewOriginalTab">原图</button><button id="previewCropTab">裁剪效果</button></div><div class="preview-page-nav"><button aria-label="上一页" class="icon-button compact" id="sidePrevPage"><i data-icon="left"></i></button><span id="sidePageText">— / —</span><button aria-label="下一页" class="icon-button compact" id="sideNextPage"><i data-icon="right"></i></button></div></div>
+<div class="preview-card-body" id="previewCardBody"><div class="preview-empty" id="sidePreviewEmpty"><i data-icon="image"></i><strong>选择一个材料查看预览</strong><span>添加文件后会自动显示第一页</span><button class="text-button" hidden="" id="retryPreview">重新加载预览</button></div><div class="preview-media" hidden="" id="sidePreviewMedia"><div class="preview-image-stage"><img alt="材料预览" id="sidePreviewImage"/><canvas hidden="" id="sidePreviewCanvas"></canvas><div class="preview-loading" hidden="" id="sidePreviewLoading"><span class="spinner"></span><span>正在生成预览…</span></div></div><aside class="preview-meta"><strong class="preview-meta-title">文件信息</strong><strong id="sidePreviewName">—</strong><dl><div><dt>文件大小</dt><dd id="sidePreviewBytes">—</dd></div><div><dt>页面</dt><dd id="sidePreviewPages">—</dd></div><div><dt id="previewDimensionLabel">预览尺寸</dt><dd id="sidePreviewDimensions">—</dd></div><div><dt>裁剪后</dt><dd id="sidePreviewCropSize">—</dd></div></dl><p class="microcopy" id="sidePreviewNote"></p><button class="button secondary full" id="sideEditButton"><i data-icon="crop"></i>编辑裁剪区域</button></aside></div></div>
+</section>
+<aside class="card settings-card" data-layout-region="settings" id="settingsCard">
+<div class="settings-heading"><div><h2>导出设置</h2></div><button aria-label="恢复推荐设置" class="icon-button compact" id="settingsReset" title="恢复推荐设置"><i data-icon="refresh"></i></button></div>
+<fieldset id="exportSettings"><div class="settings-top-grid"><div class="field" id="formatField"><label for="outputFormat">输出格式</label><select id="outputFormat"><option value="jpg">JPG（推荐）</option><option value="jpeg">JPEG（.jpeg）</option><option value="png">PNG（无损）</option><option value="gif">GIF（静态）</option><option value="auto">保持原图片格式</option></select></div><div class="field"><div class="field-label"><label for="sizeAmount">大小限制</label><span id="limitScope">每张图片</span></div><div class="size-input-group"><input aria-describedby="sizeNote sizeError" autocomplete="off" id="sizeAmount" inputmode="decimal" maxlength="16" type="text" value="2"/><select aria-label="大小单位" id="sizeUnit"><option value="MB">MB</option><option value="KB">KB</option></select></div></div></div><div class="limit-information"><div class="quick-sizes" id="quickSizes"><button data-amount="200" data-unit="KB">200 KB</button><button data-amount="500" data-unit="KB">500 KB</button><button data-amount="1" data-unit="MB">1 MB</button><button data-amount="2" data-unit="MB">2 MB</button></div><p class="size-note" id="sizeNote">范围 1 KB～100 MB · 自动留出安全余量</p><p class="field-error" hidden="" id="sizeError" role="alert"></p></div>
+
+
+<section class="settings-section" id="pdfOptions">
+<div class="two-fields"><div class="field" id="pagesField"><label for="pages">页面范围</label><input autocomplete="off" id="pages" maxlength="1000" placeholder="全部 · 如 1,3-5" type="text"/></div><div class="field"><label for="dpi">分辨率（DPI）</label><select id="dpi"><option value="150">150</option><option selected="" value="200">200（推荐）</option><option value="300">300</option></select></div></div>
+<div class="crop-settings" id="cropSettings"><div class="two-fields"><div class="field"><label for="cropMode">裁剪模式</label><select id="cropMode"><option value="none">不裁剪</option><option value="auto">自动去白边（推荐）</option><option value="uniform">统一裁剪</option><option value="manual">手动框选</option></select></div><div class="field"><label for="cropMargin">保留边距</label><select id="cropMargin"><option value="0">0 mm</option><option value="1">1 mm</option><option selected="" value="2">2 mm（推荐）</option><option value="5">5 mm</option><option value="10">10 mm</option><option value="20">20 mm</option></select></div></div><button class="button secondary full" id="openCrop"><i data-icon="crop"></i>预览页面 / 编辑裁剪区域</button><p class="microcopy" id="cropSummary">自动裁剪保留 2 mm 安全边距。</p></div>
+</section>
+<section class="settings-section" hidden="" id="imageOptions"><button class="button secondary full" id="openImageEdit"><i data-icon="crop"></i>裁剪、旋转与翻转</button><label class="check-label spaced"><input id="trimImages" type="checkbox"/><span>自动去除图片四周白边</span></label><p class="microcopy">保留 8 px 边距；手动裁剪框优先。</p></section>
+<section class="settings-section" hidden="" id="paperOptions"><div class="field"><label for="paper">PDF 页面尺寸</label><select id="paper"><option value="a4">A4 · 自动适应横竖方向</option><option value="fit">贴合图片 · 不添加页边距</option></select></div><p class="microcopy">按队列顺序合并；限制作用于整份 PDF。</p></section>
+<section class="consent-box" hidden="" id="consentBox"><i data-icon="warning"></i><div><strong>这是扫描图像重建，不是无损压缩</strong><p>可搜索文本、表单、超链接和数字签名不会保留。不要用它处理需要验签的证明。</p><label class="check-label"><input id="consent" type="checkbox"/><span>我已了解，继续重建</span></label></div></section>
+<details class="advanced"><summary><span><i data-icon="tune"></i>高级设置</span><i data-icon="chevron"></i></summary><div class="advanced-body"><div class="field"><div class="field-label"><label for="profile">清晰度策略</label><span>优先保留小字</span></div><select id="profile"><option value="balanced">平衡（推荐）</option><option value="clear">清晰优先</option><option value="small">体积优先</option><option value="tiny">极小体积</option></select></div><details class="preset-details"><summary>我的大小预设</summary><div class="saved-presets"><select aria-label="我的大小预设" id="savedPresets"><option value="">我的大小预设</option></select><button class="text-button" id="savePreset" title="将当前大小存为预设"><i data-icon="bookmark"></i>存为预设</button></div></details>
+<div class="field" id="maxEdgeField"><label for="maxEdge">最长边（px）</label><input id="maxEdge" max="12000" min="0" step="1" type="number" value="0"/><p class="microcopy">0 表示不限；只缩小，不放大。范围 64～12000。</p></div>
+<label class="check-label align-start" id="strictLabel"><input id="strict" type="checkbox"/><span>转换 / 编辑结果也必须小于原件</span></label><p class="microcopy" id="strictNote">PDF 转图片时比较图片合计与原 PDF。纯压缩始终不增大。</p>
+<label class="check-label spaced"><input id="makeZip" type="checkbox"/><span>同时整理成 ZIP 压缩包</span></label><p class="microcopy">ZIP 仅用于整理，不适用于只接收图片的上传框。</p>
+<div class="field" id="passwordField"><label for="pdfPassword">PDF 打开密码（可选）</label><input autocomplete="off" id="pdfPassword" maxlength="1024" placeholder="只在本次会话内使用" type="password"/></div>
+</div></details>
+</fieldset>
+</aside>
+</div>
+</div>
+<footer class="export-dock" data-layout-region="dock" id="exportDock">
+<div class="output-dock-field"><label for="outputDir">输出目录</label><input autocomplete="off" id="outputDir" placeholder="选择输出目录" spellcheck="false" type="text"/><button class="button secondary small" id="browseFolder">更改</button><button class="button secondary small" disabled="" id="openOutputDir">打开</button></div>
+<label class="check-label open-after"><input checked="" id="openAfterExport" type="checkbox"/><span>处理完成后打开文件夹</span></label>
+<div aria-live="polite" class="export-status" role="status"><span class="state-orb" id="stateOrb"><i data-icon="check"></i></span><div><strong id="statusTitle">准备就绪</strong><p id="statusDetail">添加材料并设置参数，然后开始处理。</p></div></div>
+<div class="job-meter" hidden="" id="jobMeter"><div class="meter-label"><span id="meterText">准备处理</span><span id="meterPercent"></span></div><div class="progress-track"><div id="progressFill"></div></div></div>
+<div class="export-actions"><button class="button secondary" hidden="" id="cancelJob">停止</button><button class="button primary export-button" disabled="" id="startExport"><i data-icon="play"></i><span id="startText">开始处理</span></button></div>
+</footer>
+</main>
+</div>
+<input accept=".pdf" hidden="" id="fileInput" multiple="" type="file"/>
+<input directory="" hidden="" id="folderInput" multiple="" type="file" webkitdirectory=""/>
+<div class="drop-overlay" hidden="" id="dropOverlay"><div><i data-icon="upload"></i><h2>松开鼠标，添加到工作台</h2><p>仅在本地读取，不上传互联网</p></div></div>
+<div aria-atomic="false" aria-live="polite" class="toasts" id="toasts"></div>
+<dialog aria-labelledby="editorTitle" class="editor-dialog" id="editorDialog">
+<header class="dialog-header"><div><span class="eyebrow">NON-DESTRUCTIVE EDITOR</span><h2 id="editorTitle">裁剪与调整</h2><p id="editorFilename"></p></div><div class="dialog-header-actions"><div class="page-nav" id="editorPages"><button aria-label="上一页" class="icon-button" id="prevPage"><i data-icon="left"></i></button><label><input aria-label="当前页码" id="editorPageNumber" min="1" type="number" value="1"/><span id="editorPageTotal">/ 1</span></label><button aria-label="下一页" class="icon-button" id="nextPage"><i data-icon="right"></i></button></div><button aria-label="取消编辑并关闭" class="icon-button" id="editorClose"><i data-icon="close"></i></button></div></header>
+<div class="editor-toolbar"><div class="edit-tool-group"><button aria-label="撤销" class="icon-button" id="editUndo" title="撤销 · Ctrl+Z"><i data-icon="undo"></i></button><button class="text-button" id="editReset"><i data-icon="refresh"></i>重置</button><span class="tool-divider"></span><span class="edit-tool-group" id="imageTransformTools"><button aria-label="向左旋转" class="icon-button" id="rotateLeft" title="向左旋转 90°"><i data-icon="rotateLeft"></i></button><button aria-label="向右旋转" class="icon-button" id="rotateRight" title="向右旋转 90°"><i data-icon="rotateRight"></i></button><button aria-label="水平翻转" class="icon-button" id="flipH" title="水平翻转"><i data-icon="flipH"></i></button><button aria-label="垂直翻转" class="icon-button" id="flipV" title="垂直翻转"><i data-icon="flipV"></i></button><span class="tool-divider"></span></span><button class="text-button" id="editorAutoCrop"><i data-icon="sparkle"></i>识别白边</button></div><div class="edit-tool-group ratio-field"><label for="aspectRatio">比例</label><select id="aspectRatio"><option value="free">自由裁剪</option><option value="1">1 : 1 · 正方形</option><option value="0.75">3 : 4 · 竖向</option><option value="1.3333333333">4 : 3 · 横向</option><option value="0.7071067812">A4 · 竖向</option><option value="1.7777777778">16 : 9</option></select></div></div>
+<div class="editor-body"><div class="editor-stage-column"><div class="editor-stage" id="editorStage"><div class="editor-loading" id="editorLoading"><span class="spinner"></span><strong>正在准备预览</strong><p>只读取当前页，最终导出使用原始像素。</p></div><div class="edit-frame" hidden="" id="editFrame"><canvas id="editCanvas"></canvas><div aria-label="保留区域，可拖动、调整边角或用方向键微调" class="crop-box" id="cropBox" role="group" tabindex="0"><div class="crop-grid"></div><span class="crop-handle nw" data-handle="nw"></span><span class="crop-handle n" data-handle="n"></span><span class="crop-handle ne" data-handle="ne"></span><span class="crop-handle e" data-handle="e"></span><span class="crop-handle se" data-handle="se"></span><span class="crop-handle s" data-handle="s"></span><span class="crop-handle sw" data-handle="sw"></span><span class="crop-handle w" data-handle="w"></span><span class="crop-caption">保留区域</span></div></div></div><div class="stage-bottom"><span><span class="green-key"></span>框内保留，暗色区域移除</span><div><button aria-label="缩小预览" class="icon-button compact" id="zoomOut"><i data-icon="minus"></i></button><button class="text-button" id="zoomFit">适应窗口</button><button aria-label="放大预览" class="icon-button compact" id="zoomIn"><i data-icon="plus"></i></button></div></div></div>
+<aside class="editor-inspector"><h3>裁剪后预览</h3><div class="crop-preview-wrap"><canvas id="cropPreviewCanvas"></canvas></div><div class="editor-dimensions"><span id="dimensionLabel">裁剪后尺寸</span><strong id="cropDimensions">— × —</strong><p id="sourceDimensions">原图 — × —</p></div><div class="inspector-divider"></div><h3>保留范围 <span>百分比 %</span></h3><div class="crop-coordinates"><label>左<input data-coordinate="left" max="100" min="0" step="0.1" type="number" value="0"/></label><label>上<input data-coordinate="top" max="100" min="0" step="0.1" type="number" value="0"/></label><label>右<input data-coordinate="right" max="100" min="0" step="0.1" type="number" value="100"/></label><label>下<input data-coordinate="bottom" max="100" min="0" step="0.1" type="number" value="100"/></label></div><p class="microcopy">拖动框移动；拖边角缩放；在框外拖动可重新框选。方向键微调，Shift 加速。</p><div class="editor-safety"><i data-icon="shield"></i><p id="editorSafety">仅保存编辑方案，不改写原件。文件体积以实际导出后的字节数为准。</p></div></aside></div>
+<footer class="dialog-footer"><label class="check-label" id="applyAllLabel"><input id="applyAll" type="checkbox"/><span id="applyAllText">应用到当前工具的全部图片</span></label><div><button class="button secondary" id="editorCancel">取消</button><button class="button primary" id="editorSave"><i data-icon="check"></i>保存编辑方案</button></div></footer>
+</dialog>
+<dialog aria-labelledby="previewTitle" class="preview-dialog" id="previewDialog"><header class="dialog-header"><div><span class="eyebrow">OUTPUT CHECK</span><h2 id="previewTitle">检查导出结果</h2><p id="previewInfo"></p></div><button aria-label="关闭预览" class="icon-button" id="previewClose"><i data-icon="close"></i></button></header><div class="output-preview-stage" id="outputPreviewStage"><img alt="导出结果预览" id="outputPreviewImage"/></div><footer class="dialog-footer"><span class="microcopy">点击图片在适应窗口 / 原始像素之间切换。请核对细小文字。</span><button class="button secondary" id="previewOpenExternal"><i data-icon="external"></i>用系统程序打开</button></footer></dialog>
+<dialog aria-labelledby="aboutTitle" class="help-dialog" id="aboutDialog"><header class="dialog-header"><h2 id="aboutTitle">关于 ApplyKit</h2><button aria-label="关闭关于" class="icon-button" id="aboutClose"><i data-icon="close"></i></button></header><div class="about-body"><img alt="ApplyKit 图标" height="86" src="/brand.svg" width="86"/><h2>让材料准备，少一点折腾。</h2><p>PDF 转图片 · 图片压缩与编辑 · 图片合并 PDF · 扫描 PDF 压缩</p><p>所有材料只在你的电脑中处理，原文件保持不变。</p><p id="aboutVersion"></p><a href="https://github.com/augety121/ApplyKit" rel="noreferrer" target="_blank">查看项目与更新 ↗</a></div></dialog>
+<dialog aria-labelledby="helpTitle" class="help-dialog" id="helpDialog"><header class="dialog-header"><div><span class="eyebrow">APPLYKIT GUIDE</span><h2 id="helpTitle">让材料准备，少一点折腾。</h2></div><button aria-label="关闭说明" class="icon-button" id="helpClose"><i data-icon="close"></i></button></header><div class="help-body"><div class="help-highlight"><i data-icon="shield"></i><div><strong>本地处理 · 不覆盖原件 · 真实校验</strong><p>软件只在 127.0.0.1 上交换本地数据。原材料缓存、预览与密码不发送到互联网；正常关闭后清理工作缓存。输出文件由你保留。</p></div></div><h3>一次顺手的导出</h3><p>① 添加并勾选材料。② 需要时打开编辑器，裁剪或旋转，保存方案。③ 直接输入数值，选择 KB / MB，也能保存常用预设。④ 开始导出，逐个检查结果。</p><h3>大小是怎样判断的？</h3><p>KB = 1,000 字节；MB = 1,000,000 字节。上限为严格小于，编码通常瞄准上限的 95%。可以输入 500 KB、0.8 MB、1.5 MB 等，范围为 1 KB～100 MB。清晰度底线内不能达标时明确报错，不生成“假合格”文件。</p><h3>“更小”和“转换完成”不是同一件事</h3><p>纯压缩不会变大；原图已达标但无法再缩小时，可原字节保留。图片编辑或格式转换默认也要求小于原件；可在更多设置中取消此约束，但上传上限依然有效。编辑无法完成时不会用未编辑原图冒充结果。PDF 转图片可能比文字型 PDF 大。</p><h3>裁剪与图片编辑</h3><p>PDF 预览按需加载当前页；最终按选定 DPI 重新渲染。图片支持自由框选、固定比例、旋转、水平/垂直翻转、去白边、撤销与批量应用。自动去白边可能识别不到极浅文字，提交前务必检查。没有手动框选的 PDF 页保留整页。</p><h3>格式与保护</h3><p>支持 JPG、JPEG、PNG、静态 GIF。动态 GIF 会拒绝处理，不静默丢帧。新编码的透明图片合成白底；不提供透明度保留、OCR、图片修复或数字签名保真。扫描 PDF 压缩和图片合并 PDF 生成图像型 PDF，不保留可搜索文本层。</p><h3>快捷键</h3><div class="shortcut-grid"><span>添加材料<kbd>Ctrl O</kbd></span><span>开始导出<kbd>Ctrl Enter</kbd></span><span>全选当前列表<kbd>Ctrl A</kbd></span><span>编辑器撤销<kbd>Ctrl Z</kbd></span><span>裁剪框微调<kbd>↑ ↓ ← →</kbd></span><span>取消编辑<kbd>Esc</kbd></span></div><h3>运行要求与诊断</h3><p>Windows 10 / 11 x64，已安装 Microsoft Edge 或 Google Chrome。PDF 使用系统 Windows.Data.Pdf 与 Windows PowerShell 5.1；不需要 Python、Node.js 或编译环境。界面由独立的浏览器应用窗口承载，程序包没有内置浏览器内核。</p><p class="microcopy" id="verificationNotice"></p><div class="help-footer"><span id="helpVersion"></span><button class="button secondary small" id="downloadDiagnostics"><i data-icon="download"></i>导出无材料诊断</button></div></div></dialog>
+<dialog aria-labelledby="promptTitle" class="prompt-dialog" id="promptDialog"><form id="promptForm"><header class="dialog-header"><h2 id="promptTitle"></h2></header><div class="prompt-body"><label for="promptValue" id="promptLabel"></label><input autocomplete="off" id="promptValue" maxlength="24" required="" type="text"/><p class="microcopy" id="promptDescription"></p></div><footer class="dialog-footer"><span></span><div><button class="button secondary" id="promptCancel" type="button">取消</button><button class="button primary" type="submit">保存</button></div></footer></form></dialog>
+</body></html>

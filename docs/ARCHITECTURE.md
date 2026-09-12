@@ -1,59 +1,76 @@
-# Architecture / 开发说明
+# ApplyKit 2.2 Architecture
 
-## Processes and files
+## Goals
 
-`ApplyKit.exe` embeds `assets/` using Go embed. It extracts immutable, content-addressed resource files under `%LOCALAPPDATA%/ApplyKit/<version>-<hash>/`, launches Windows PowerShell 5.1 in STA mode and loads the WPF XAML. The GUI creates an isolated job directory and invokes the same EXE as a worker. JSONL progress is polled by WPF dispatch timers; heavy PDF/image work is not performed in mouse event handlers.
+ApplyKit is a Windows desktop utility for job-application materials. The design optimizes for four constraints: local-only processing, non-destructive input handling, exact byte-limit validation, and a responsive workflow that remains usable on common 1280×720-class laptops.
 
-Entry points are `--worker <job.json>`, `--crop-preview <request.json>` and `--assets-info <output.json>`. These are internal diagnostics/interfaces, not a network service. Worker request files are consumed and removed after reading. The password is carried in an inherited environment variable; it is never written to request JSON or the command line.
+## Process model
 
-Go's `renderPDF` invokes `assets/render.ps1`. The script uses Windows.Data.Pdf to load and render pages, emits metadata and temporary PNG paths, and disposes page/stream resources. Selected-page order is preserved; duplicate page numbers are ignored. The pipeline has page, file, pixel and render-size caps.
+`ApplyKit.exe` contains the Go processing engine, the web UI, the brand assets and the Windows PDF render script. On startup it binds an ephemeral TCP port on `127.0.0.1`, generates a 192-bit random session token, and launches Edge/Chrome in application-window mode. The UI talks only to that loopback session.
 
-## Conversion pipeline
+The HTTP layer rejects unexpected hosts/origins, requires `Authorization: Bearer <session-token>` for every `/api/*` endpoint, disables caching, applies a restrictive Content Security Policy, limits request sizes, and stores uploaded working copies in a per-launch temporary directory.
 
-```text
-PDF -> Windows page rendering -> white background image
-    -> selected crop policy -> format encoder / bounded resizing
-    -> final byte-length check -> non-overwriting output -> report
-```
+## UI
 
-`fitImage` starts at the original cropped dimensions. JPEG quality is reduced within a selected floor; if needed, Lanczos resampling reduces resolution to a configured floor. PNG uses lossless encoding at each tested resolution; GIF is static/paletted. These floors are algorithmic guards, not a text-readability guarantee.
+The UI is plain HTML/CSS/ES modules embedded at build time:
 
-Every export is checked by actual byte length. Compression caps also use `originalBytes - 1`. PDF-to-images strict mode divides the aggregate source budget among selected pages; this is conservative and may reject a page even if a more complex adaptive allocation could fit. Image-to-PDF similarly uses per-page budgets plus structural headroom. There is no promise of optimal compression.
+- `web/index.html` — semantic workspace and dialogs.
+- `web/app.css` — shared components and editor styling.
+- `web/desktop.css` — responsive desktop grid and theme tokens.
+- `web/geometry.mjs` — PDF point-to-pixel conversion and shared Canvas transforms.
+- `web/ui.js` — local API client, toasts and SVG icons.
+- `web/app.js` — queue, settings, preferences, job polling and result preview.
+- `web/editor.js` — Canvas-based non-destructive editor.
 
-## Crop semantics
+The primary layout regions are queue, results, settings and export dock. Desktop queue/results and settings scroll independently while the bottom export dock stays in its own grid row; this prevents the card-overlap issue from the 1.x layout.
 
-`NormalizedRect` describes the region to KEEP in top-left-origin normalized coordinates. `0,0,1,1` means a full page. Export maps it to rendered pixels with outward rounding. Cropped pixel buffers are zero-origin buffers, so image encoders/resamplers cannot accidentally reuse the wrong row offset.
+## Processing pipeline
 
-Automatic detection scans every pixel. A pixel is content if any RGB channel is at or below the chosen threshold. It does not use OCR, majority voting or speckle removal. A faint colored edge mark therefore counts when it passes the threshold, regardless of how few pixels are in that row. Marks above the threshold can still be missed; the UI explicitly warns about this. Pure-white-only mode uses threshold 254.
+### PDF → images
 
-Safety margin is expressed in millimeters and converted using the effective render resolution and physical page dimensions. Completely blank pages stay full-sized. Extremely sparse detections also preserve the entire page. Neither rule drops pages.
+`Windows.Data.Pdf` renders selected pages to temporary PNG files at 150/200/300 DPI. The page then goes through optional PDF crop, optional max-edge resize, image fitting, real-byte validation and atomic output publication.
 
-Uniform automatic crop performs two passes over selected pages of one PDF. The first computes the union of nonblank content rectangles in normalized coordinates, including margins. The second re-renders and exports. Blank pages stay complete. No intersecting crop or artificial stretching is used; differing page sizes may produce different pixel dimensions. Memory is bounded page-by-page, at the cost of additional rendering.
+Crop modes:
 
-Manual plans are keyed by input path and bound to the input SHA-256. A per-page rectangle overrides the document-wide rectangle; a page without either stays whole. A missing plan for a queued PDF is an explicit error. The preview checks the file fingerprint both before and after rendering. The export checks it again before rendering. This prevents ordinary stale-plan mistakes; the program does not claim a hardened defense against concurrent hostile local file mutation.
+- `none` — full page.
+- `auto` — detect non-white pixels on each page and expand by a physical margin.
+- `uniform` — detect each selected page, take the union of content bounds, then re-render/export with one normalized region.
+- `manual` — normalized rectangles saved from the editor and protected by the source PDF SHA-256.
 
-## Preview and UI
+Blank or extremely sparse pages are preserved conservatively rather than aggressively cropped.
 
-The preview process renders at 110 DPI with a 1600-pixel long-edge cap. It sends page paths and suggested rectangles. WPF loads the current page without retaining file handles, displays shaded excluded regions and a CroppedBitmap result, and edits normalized coordinates. Only the current bitmap needs to be resident in the UI. All preview pages remain temporary files until the modal editor closes.
+### Image processing
 
-The manual workbench saves only a file fingerprint and numeric selections to the current UI session. It does not persist crop presets across launches. Applying one frame to a PDF's pages clears older per-page overrides after a confirmation, then allows new overrides.
+The image pipeline is:
 
-## Failure behavior and privacy
+1. decode and normalize image orientation/transparency;
+2. validate the edit plan against the source SHA-256;
+3. rotate;
+4. flip on display axes;
+5. automatic trim or manual normalized crop;
+6. optional max-edge downscale;
+7. fit to target bytes;
+8. validate final bytes;
+9. publish atomically.
 
-Per-page fitting failures are reported without a fake successful file. Already completed pages remain on cancellation. The program publishes uniquely named outputs; it does not replace source materials. Reports include crop bounds, dimensions, actual sizes and notes. They may also include absolute paths, so they must not be uploaded unredacted.
+Pure compression requires output to be smaller than the source. If an already-compliant unedited file cannot become smaller within the quality floor, ApplyKit may copy the original bytes and explicitly marks the result as `unchanged`. An edited file never falls back to an unedited original.
 
-Normal close removes job/preview temporary directories. Forced process termination or locked files may leave residual data. The application is not a sandbox or secure-deletion system. Its dependencies on Windows parsers should be kept patched.
+### Images → PDF
 
-## Tests
+Images are fitted into per-page budgets, JPEG encoded, and assembled into a simple image-only PDF. The limit applies to the entire final PDF. The generated PDF does not contain OCR/searchable text.
 
-`engine_test.go` tests original encoding, limits, page semantics, PDF writing and file protection. `crop_test.go` tests exact crop logic and orchestration using an explicitly injected mock renderer. `tools/windows_smoke.ps1` exercises real Windows.Data.Pdf, the embedded scripts and WPF XAML loading. Mock tests cannot substitute for that native test or for manual UI acceptance.
+### Scanned PDF compression
 
-## Primary technical references
+All pages are rendered and rebuilt as image-only PDF pages. This is deliberately named a scanned-PDF rebuild: text layers, form fields, hyperlinks and digital signatures are not preserved.
 
-- Windows PDF render API: https://learn.microsoft.com/en-us/uwp/api/windows.data.pdf.pdfpage.rendertostreamasync
-- Render options: https://learn.microsoft.com/en-us/uwp/api/windows.data.pdf.pdfpagerenderoptions
-- WPF canvas coordinates: https://learn.microsoft.com/en-us/dotnet/api/system.windows.controls.canvas
-- WPF mouse capture: https://learn.microsoft.com/en-us/dotnet/api/system.windows.input.mouse.capture
-- Go releases and toolchains: https://go.dev/dl/
+## Byte limits
 
-The implementation is intentionally dependency-light, not a claim that these system components are available under every enterprise policy.
+`parseByteLimit` parses decimal KB/MB values using `big.Rat`, avoiding floating-point boundary errors. Supported range: 1,000 to 100,000,000 bytes. The limit is exclusive. Encoders normally target 95% of the requested limit to leave upload-site headroom.
+
+## Output safety
+
+Each run creates a fresh directory. Individual files are first written to private temporary files and then published without overwriting an existing user file. The application never modifies the input path.
+
+## Windows resources
+
+`tools/make_brand.py` creates the original ApplyKit icon and SVG brand mark. `tools/make_resources.py` packages the icon, version information and manifest into `resource_windows_amd64.syso`, which the Go linker embeds in `ApplyKit.exe`.

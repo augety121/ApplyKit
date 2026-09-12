@@ -1,0 +1,45 @@
+{
+    "app":  "ApplyKit",
+    "version":  "2.2.0",
+    "time":  "2026-09-12T13:00:57.2252990+08:00",
+    "success":  true,
+    "windows":  "Microsoft Windows NT 10.0.19045.0",
+    "checks":  [
+                   {
+                       "name":  "Executable icon and version resources",
+                       "status":  "passed"
+                   },
+                   {
+                       "name":  "Start local server and load all embedded web assets",
+                       "status":  "passed"
+                   },
+                   {
+                       "name":  "Native PDF preview and configurable automatic crop margins",
+                       "status":  "passed"
+                   },
+                   {
+                       "name":  "Image rotation, flip, manual crop, maximum edge and 200 KB limit",
+                       "status":  "passed"
+                   },
+                   {
+                       "name":  "PDF pages to JPG with automatic crop and blank-page protection",
+                       "status":  "passed"
+                   },
+                   {
+                       "name":  "Manual PDF crop and page-range export",
+                       "status":  "passed"
+                   },
+                   {
+                       "name":  "Merge images to PDF, then compress the generated scan PDF",
+                       "status":  "passed"
+                   },
+                   {
+                       "name":  "Invalid size is rejected before starting a job",
+                       "status":  "passed"
+                   },
+                   {
+                       "name":  "Original samples remain byte-for-byte unchanged",
+                       "status":  "passed"
+                   }
+               ]
+}

@@ -1,0 +1,59 @@
+name: Build and test
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.x'
+          cache: false
+      - name: Core tests
+        run: go test -count=1 -v ./...
+      - name: Static analysis
+        run: go vet ./...
+      - name: Frontend syntax
+        shell: bash
+        run: |
+          node --check web/app.js
+          node --check web/ui.js
+          node --check web/editor.js
+          node --test tests/*.test.mjs
+      - name: Build portable Windows executable
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: ./build.ps1 -SkipTests
+      - name: Native Windows acceptance
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: powershell.exe -NoLogo -NoProfile -STA -ExecutionPolicy RemoteSigned -File ./tools/windows_smoke.ps1
+      - name: Package
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: ./tools/package.ps1
+      - name: Upload Windows package
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ApplyKit-Windows-x64
+          path: dist/ApplyKit_Windows_x64_*.zip
+          if-no-files-found: error
+      - name: Upload native test diagnostics
+        if: always() && runner.os == 'Windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-test-diagnostics
+          path: out/windows-smoke-*/
+          if-no-files-found: ignore
+          retention-days: 7

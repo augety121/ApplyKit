@@ -1,47 +1,43 @@
-# 上传 GitHub 与发布软件
+# 上传 GitHub / 发布版本
 
-## 放哪些文件
+## 仓库根目录
 
-解压源码包，把里面包含 `README.md`、`go.mod`、`assets/`、`.github/` 的这一层作为仓库根目录。不要再套一层无意义的压缩包文件夹。Windows 文件管理器可能不明显显示以点开头的目录；`.github` 中的工作流也要提交。
+解压源码包后，**把包含 `README.md`、`go.mod`、`web/`、`assets/`、`.github/` 的 `ApplyKit` 文件夹内容作为仓库根目录**，不要再额外套一层压缩包。
 
-建议仓库名 `ApplyKit`，描述可使用：
-
-> 离线 Windows 投递材料工具：PDF 转图片、白边裁剪、图片压缩与图片合并 PDF，支持严格上传大小限制。
-
-源码已包含 README（中文/英文）、MIT LICENSE、忽略规则、构建脚本、测试、Issue 模板和发布流程。不要把真实简历、证件、成绩单、密码或处理结果加入仓库；这些不属于代码。
-
-## 首次上传
-
-在 GitHub 创建一个空仓库。以下地址是需要替换的占位符，不表示已经为你创建了仓库。
+建议：
 
 ```bash
 git init
 git add .
-git commit -m "feat: ApplyKit 1.1 with PDF crop workbench"
+git commit -m "release: ApplyKit 2.2.0"
 git branch -M main
-git remote add origin https://github.com/YOUR_GITHUB_USERNAME/ApplyKit.git
+git remote add origin <your-repository-url>
 git push -u origin main
 ```
 
-使用网页上传时，也应上传解压后的源码文件，而不是只上传 Source.zip。Git 可以更可靠地保留目录结构。
+不要提交真实简历、证件、成绩单或招聘网站材料。本仓库 `samples/` 只包含合成测试文件。
 
-## 首次发布 1.1.0
+## GitHub Actions
 
-先在 Windows 运行软件包中的 `运行自检.cmd`，完成交互检查，再确认该仓库的 `Build and test` Actions 记录通过。随后推送标签：
+- `.github/workflows/ci.yml`：Ubuntu + Windows 单元测试、静态检查、Windows 构建、真机组件自检和 ZIP Artifact。
+- `.github/workflows/release.yml`：推送 `v*` tag 时，在 Windows Runner 重新验证并发布 Release ZIP。
+
+## 发布 2.2.0
+
+确认 Actions 绿色后：
 
 ```bash
-git tag v1.1.0
-git push origin v1.1.0
+git tag v2.2.0
+git push origin v2.2.0
 ```
 
-标签工作流会在 Windows 上执行测试、构建、原生冒烟测试、打包，再用 GitHub CLI 创建 Release 并附加 Windows ZIP。需要仓库允许 Actions；工作流中已声明 `contents: write` 权限。组织策略可以覆盖该权限。失败时应查看运行日志，不能把失败构建标成正式版。
+Release workflow 会校验 tag 与 `main.go` 中版本号一致，再创建 GitHub Release。不要把开发环境里的 Linux 验证当作 `Windows.Data.Pdf` 真机验收；正式 Release 由 Windows Runner 执行 `tools/windows_smoke.ps1`。
 
-也可以手动创建 Release，将已经生成的软件 ZIP 上传为附件。普通使用者应下载这个附件，而不是 GitHub 自动生成的 Source code ZIP。
+## 本地重新构建
 
-当前工作流不覆盖已有 Release 或同名附件。不要重复删除/重建标签来掩盖失败；检查失败原因并用新补丁版本发布。
+```powershell
+./build.ps1
+./tools/package.ps1
+```
 
-## 后续版本
-
-更新 `main.go` 中的版本号、Windows 资源生成脚本中的版本号并重新生成 `.syso`，更新 CHANGELOG，运行测试。新版本标签必须与源码版本一致。普通用户不需要这些开发步骤。
-
-这次交付只提供文件，没有自动创建仓库、提交、推送或修改你的 GitHub 内容。
+输出在 `dist/`。
