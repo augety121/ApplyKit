@@ -2,7 +2,7 @@
 $ErrorActionPreference='Stop'
 Push-Location $PSScriptRoot
 try {
- if(-not (Get-Command go -ErrorAction SilentlyContinue)){throw 'Source builds require Go 1.23 or newer. Release users do not need Go.'}
+ if(-not (Get-Command go -ErrorAction SilentlyContinue)){throw 'Source builds require Go 1.24 or newer. Release users do not need Go.'}
  if(-not $SkipTests){
   & go test -count=1 ./...; if($LASTEXITCODE -ne 0){throw 'Unit tests failed.'}
   & go vet ./...; if($LASTEXITCODE -ne 0){throw 'go vet failed.'}

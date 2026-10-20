@@ -1,7 +1,7 @@
 {
     "app":  "ApplyKit",
-    "version":  "2.2.0",
-    "time":  "2026-09-12T13:00:57.2252990+08:00",
+    "version":  "2.2.1",
+    "time":  "2026-10-20T10:43:43.0926717+08:00",
     "success":  true,
     "windows":  "Microsoft Windows NT 10.0.19045.0",
     "checks":  [

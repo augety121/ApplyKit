@@ -30,20 +30,24 @@ import (
 var webFiles embed.FS
 
 // Synthetic examples contain no personal data and follow the normal upload path.
+//
 //go:embed samples/crop-demo.pdf samples/text-demo.png
 var exampleFiles embed.FS
 
 const maxSessionBytes int64 = 2 * 1024 * 1024 * 1024
 
 type FileItem struct {
-	ID     string `json:"id"`
-	Name   string `json:"name"`
-	Kind   string `json:"kind"`
-	Bytes  int64  `json:"bytes"`
-	Width  int    `json:"width,omitempty"`
-	Height int    `json:"height,omitempty"`
-	SHA256 string `json:"sha256"`
-	Path   string `json:"-"`
+	ID             string `json:"id"`
+	Name           string `json:"name"`
+	Kind           string `json:"kind"`
+	Bytes          int64  `json:"bytes"`
+	Width          int    `json:"width,omitempty"`
+	Height         int    `json:"height,omitempty"`
+	SHA256         string `json:"sha256"`
+	Path           string `json:"-"`
+	ProcessingNote string `json:"processingNote,omitempty"`
+	WorkingWidth   int    `json:"workingWidth,omitempty"`
+	WorkingHeight  int    `json:"workingHeight,omitempty"`
 }
 type Preview struct {
 	FileID       string  `json:"-"`
@@ -507,8 +511,8 @@ func (s *AppServer) upload(w http.ResponseWriter, r *http.Request) {
 			apiError(w, 400, fmt.Errorf("图片已损坏或格式不支持"))
 			return
 		}
-		if cfg.Width < 1 || cfg.Height < 1 || int64(cfg.Width)*int64(cfg.Height) > maxPixels {
-			apiError(w, 400, fmt.Errorf("图片超过 3200 万像素安全上限"))
+		if e := validateImageSize(cfg); e != nil {
+			apiError(w, 400, e)
 			return
 		}
 		if format == "gif" && gifFrameCount(data) > 1 {
@@ -521,6 +525,10 @@ func (s *AppServer) upload(w http.ResponseWriter, r *http.Request) {
 			if o >= 5 && o <= 8 {
 				item.Width, item.Height = item.Height, item.Width
 			}
+		}
+		item.WorkingWidth, item.WorkingHeight = workingSize(item.Width, item.Height, 0)
+		if item.WorkingWidth != item.Width || item.WorkingHeight != item.Height {
+			item.ProcessingNote = fmt.Sprintf("高分辨率扫描图：处理副本将等比缩小至 %d × %d，原文件保持不变。", item.WorkingWidth, item.WorkingHeight)
 		}
 	}
 	s.mu.Lock()
@@ -584,7 +592,7 @@ func (s *AppServer) preparePreview(ctx context.Context, id string, page int, pas
 	p := Preview{Key: randomID(), FileID: id, Page: page, Total: 1}
 	var im *image.RGBA
 	if f.Kind == "image" {
-		src, e := loadImage(f.Path)
+		src, e := loadImageSized(ctx, f.Path, 1600)
 		if e != nil {
 			return p, e
 		}
@@ -592,7 +600,7 @@ func (s *AppServer) preparePreview(ctx context.Context, id string, page int, pas
 			return p, fmt.Errorf("不支持动态 GIF")
 		}
 		im = src.Image
-		p.SourceWidth, p.SourceHeight = im.Bounds().Dx(), im.Bounds().Dy()
+		p.SourceWidth, p.SourceHeight = src.SourceWidth, src.SourceHeight
 	} else {
 		job := Job{DPI: 110, RenderMaxLong: 1600, Pages: strconv.Itoa(page), Password: password}
 		e = s.renderer(ctx, job, f.Path, s.assets, func(ev renderEvent) error {
@@ -710,7 +718,7 @@ func (s *AppServer) autoCrop(w http.ResponseWriter, r *http.Request) {
 		path = p.Path
 		mx, my = marginPixels(CropOptions{MarginMM: q.MarginMM}, renderEvent{PageWidth: p.PageWidth, PageHeight: p.PageHeight}, image.Rect(0, 0, p.Width, p.Height), 110)
 	}
-	src, e := loadImage(path)
+	src, e := loadImageSized(r.Context(), path, 0)
 	if e != nil {
 		apiError(w, 400, e)
 		return
@@ -852,6 +860,11 @@ func (s *AppServer) startJob(w http.ResponseWriter, r *http.Request) {
 			}
 			s.mu.Unlock()
 		}()
+		if err := s.acquire(ctx); err != nil {
+			s.pushEvent(id, Event{Kind: "complete", Canceled: true})
+			return
+		}
+		defer func() { <-s.compute }()
 		runJobContext(ctx, job, s.assets, func(ev Event) { s.pushEvent(id, ev) }, s.renderer)
 	}()
 	sendJSON(w, 201, map[string]any{"id": id, "limit": limit, "target": budget(job)})

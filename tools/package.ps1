@@ -11,7 +11,7 @@ Copy-Item (Join-Path $root 'docs/USER_GUIDE.zh-CN.html') (Join-Path $folder '使
 Copy-Item (Join-Path $root 'docs/windows-acceptance.json') (Join-Path $folder 'windows-acceptance.json')
 Copy-Item (Join-Path $root 'docs/ACCEPTANCE.md') (Join-Path $folder '验收说明.md')
 Copy-Item (Join-Path $root 'docs/app-icon-preview.png') (Join-Path $folder '新图标预览.png')
-Copy-Item (Join-Path $root 'docs/ui-v22-desktop.png') (Join-Path $folder '界面布局验收.png')
+Copy-Item (Join-Path $root 'docs/ui-v221-scan.png') (Join-Path $folder '界面布局验收.png')
 Copy-Item (Join-Path $root 'samples') (Join-Path $folder '测试样本') -Recurse
 Copy-Item (Join-Path $root 'tools/windows_smoke.ps1') (Join-Path $folder 'windows_smoke.ps1')
 Copy-Item (Join-Path $root 'tools/run_self_check.cmd') (Join-Path $folder '运行自检.cmd')

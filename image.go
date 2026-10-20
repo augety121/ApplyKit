@@ -15,19 +15,57 @@ import (
 	"math"
 	"os"
 	"strings"
+
+	xdraw "golang.org/x/image/draw"
 )
 
 const maxInputBytes int64 = 250 * 1024 * 1024
 const maxPixels int64 = 32000000
+const maxSourcePixels int64 = 160000000
+
+// Estimate the decoded pixel buffer before decoding; codec overhead is additional.
+func validateImageSize(cfg image.Config) error {
+	if cfg.Width < 1 || cfg.Height < 1 || int64(cfg.Width) > maxSourcePixels/int64(cfg.Height) {
+		return fmt.Errorf("扫描图尺寸 %d × %d 超过 1.6 亿像素导入上限；请降低扫描 DPI 后重试", cfg.Width, cfg.Height)
+	}
+	bytesPerPixel := int64(4)
+	if cfg.ColorModel == color.RGBA64Model || cfg.ColorModel == color.NRGBA64Model {
+		bytesPerPixel = 8
+	}
+	if int64(cfg.Width)*int64(cfg.Height)*bytesPerPixel > 640*1024*1024 {
+		return fmt.Errorf("扫描图解码内存超过 640 MB；请改存为 8 位 JPG / PNG 或降低扫描 DPI")
+	}
+	return nil
+}
+
+func workingSize(w, h, maxLong int) (int, int) {
+	scale := math.Min(1, math.Sqrt(float64(maxPixels)/(float64(w)*float64(h))))
+	if maxLong > 0 {
+		scale = math.Min(scale, float64(maxLong)/float64(max(w, h)))
+	}
+	w, h = max(1, int(math.Floor(float64(w)*scale))), max(1, int(math.Floor(float64(h)*scale)))
+	// Extremely narrow inputs must not exceed the budget after rounding up to 1.
+	if int64(w)*int64(h) > maxPixels {
+		if w > h {
+			w = int(maxPixels / int64(h))
+		} else {
+			h = int(maxPixels / int64(w))
+		}
+	}
+	return w, h
+}
 
 var errCannotFit = errors.New("达到清晰度底线后仍无法满足大小要求；请改用 JPG、放宽上限，或选择体积优先")
 
 type SourceImage struct {
-	Image    *image.RGBA
-	Format   string
-	Bytes    []byte
-	Animated bool
-	Oriented bool
+	Image        *image.RGBA
+	Format       string
+	Bytes        []byte
+	Animated     bool
+	Oriented     bool
+	Reduced      bool
+	SourceWidth  int
+	SourceHeight int
 }
 type Fitted struct {
 	Data    []byte
@@ -76,19 +114,28 @@ func readLimited(path string) ([]byte, error) {
 	return b, nil
 }
 func loadImage(path string) (*SourceImage, error) {
+	return loadImageSized(context.Background(), path, 0)
+}
+func loadImageSized(ctx context.Context, path string, maxLong int) (*SourceImage, error) {
 	b, e := readLimited(path)
 	if e != nil {
 		return nil, e
 	}
-	return decodeImage(b)
+	return decodeImageSized(ctx, b, maxLong)
 }
 func decodeImage(b []byte) (*SourceImage, error) {
+	return decodeImageSized(context.Background(), b, 0)
+}
+func decodeImageSized(ctx context.Context, b []byte, maxLong int) (*SourceImage, error) {
+	if e := ctx.Err(); e != nil {
+		return nil, e
+	}
 	cfg, format, e := image.DecodeConfig(bytes.NewReader(b))
 	if e != nil {
 		return nil, fmt.Errorf("无法识别图片（支持 JPG / PNG / 静态 GIF）：%w", e)
 	}
-	if cfg.Width < 1 || cfg.Height < 1 || int64(cfg.Width)*int64(cfg.Height) > maxPixels {
-		return nil, fmt.Errorf("图片尺寸超过 3200 万像素安全上限")
+	if e := validateImageSize(cfg); e != nil {
+		return nil, e
 	}
 	animated := format == "gif" && gifFrameCount(b) > 1
 	if animated {
@@ -98,18 +145,35 @@ func decodeImage(b []byte) (*SourceImage, error) {
 	if e != nil {
 		return nil, e
 	}
-	rgba := image.NewRGBA(image.Rect(0, 0, cfg.Width, cfg.Height))
+	if e := ctx.Err(); e != nil {
+		return nil, e
+	}
+	w, h := workingSize(cfg.Width, cfg.Height, maxLong)
+	rgba := image.NewRGBA(image.Rect(0, 0, w, h))
 	draw.Draw(rgba, rgba.Bounds(), image.NewUniform(color.White), image.Point{}, draw.Src)
-	draw.Draw(rgba, rgba.Bounds(), im, im.Bounds().Min, draw.Over)
+	if w == cfg.Width && h == cfg.Height {
+		draw.Draw(rgba, rgba.Bounds(), im, im.Bounds().Min, draw.Over)
+	} else {
+		// ApproxBiLinear uses bounded auxiliary memory, unlike a full-size RGBA
+		// conversion followed by an additional separable resampling intermediate.
+		xdraw.ApproxBiLinear.Scale(rgba, rgba.Bounds(), im, im.Bounds(), draw.Over, nil)
+	}
+	if e := ctx.Err(); e != nil {
+		return nil, e
+	}
 	oriented := false
+	sw, sh := cfg.Width, cfg.Height
 	if format == "jpeg" {
 		o := exifOrientation(b)
 		if o > 1 && o <= 8 {
 			rgba = orient(rgba, o)
 			oriented = true
+			if o >= 5 {
+				sw, sh = sh, sw
+			}
 		}
 	}
-	return &SourceImage{Image: rgba, Format: normalizeFormat(format), Bytes: b, Oriented: oriented}, nil
+	return &SourceImage{Image: rgba, Format: normalizeFormat(format), Bytes: b, Oriented: oriented, Reduced: w != cfg.Width || h != cfg.Height, SourceWidth: sw, SourceHeight: sh}, nil
 }
 func normalizeFormat(f string) string {
 	f = strings.ToLower(f)

@@ -261,7 +261,7 @@ func fitNote(f Fitted) string {
 	return s
 }
 func processImage(ctx context.Context, job Job, input, out string, r *Reporter) error {
-	src, err := loadImage(input)
+	src, err := loadImageSized(ctx, input, 0)
 	if err != nil {
 		return err
 	}
@@ -293,7 +293,7 @@ func processImage(ctx context.Context, job Job, input, out string, r *Reporter) 
 			if e != nil {
 				return e
 			}
-			r.add(Record{Input: input, Output: path, Status: "unchanged", Before: before, After: before, Width: src.Image.Bounds().Dx(), Height: src.Image.Bounds().Dy(), Message: "原文件已很小且符合上限；保留原格式和原字节。"})
+			r.add(Record{Input: input, Output: path, Status: "unchanged", Before: before, After: before, Width: src.SourceWidth, Height: src.SourceHeight, Message: "原文件已很小且符合上限；保留原格式和原字节。"})
 			return nil
 		}
 		return fmt.Errorf("目标大小过小，无法在清晰度底线内处理")
@@ -309,7 +309,7 @@ func processImage(ctx context.Context, job Job, input, out string, r *Reporter) 
 			if e != nil {
 				return e
 			}
-			r.add(Record{Input: input, Output: path, Status: "unchanged", Before: before, After: before, Width: src.Image.Bounds().Dx(), Height: src.Image.Bounds().Dy(), Message: "原文件已在上限以内；无法在清晰度底线内继续缩小，保留原格式和原字节。"})
+			r.add(Record{Input: input, Output: path, Status: "unchanged", Before: before, After: before, Width: src.SourceWidth, Height: src.SourceHeight, Message: "原文件已在上限以内；无法在清晰度底线内继续缩小，保留原格式和原字节。"})
 			return nil
 		}
 		return err
@@ -324,7 +324,7 @@ func processImage(ctx context.Context, job Job, input, out string, r *Reporter) 
 			if e != nil {
 				return e
 			}
-			r.add(Record{Input: input, Output: path, Status: "unchanged", Before: before, After: before, Width: src.Image.Bounds().Dx(), Height: src.Image.Bounds().Dy(), Message: "原文件已在上限以内；重新编码没有变小，保留原格式和原字节。"})
+			r.add(Record{Input: input, Output: path, Status: "unchanged", Before: before, After: before, Width: src.SourceWidth, Height: src.SourceHeight, Message: "原文件已在上限以内；重新编码没有变小，保留原格式和原字节。"})
 			return nil
 		}
 		return fmt.Errorf("处理结果没有变小，没有导出")
@@ -345,6 +345,9 @@ func processImage(ctx context.Context, job Job, input, out string, r *Reporter) 
 		return err
 	}
 	note := fitNote(fitted)
+	if src.Reduced {
+		note += fmt.Sprintf("；高分辨率扫描图已等比缩小处理副本（原图 %d × %d），原文件保持不变", src.SourceWidth, src.SourceHeight)
+	}
 	if edited {
 		note += "；已应用裁剪 / 旋转 / 去白边 / 尺寸调整"
 	}
@@ -382,7 +385,7 @@ func processImagesPDF(ctx context.Context, job Job, out string, r *Reporter) err
 			return e
 		}
 		r.send(Event{Kind: "progress", Current: i, Total: len(job.Inputs), Message: fmt.Sprintf("合并顺序 %d / %d：%s", i+1, len(job.Inputs), filepath.Base(p))})
-		src, e := loadImage(p)
+		src, e := loadImageSized(ctx, p, 0)
 		if e != nil {
 			return fmt.Errorf("%s：%w", filepath.Base(p), e)
 		}
@@ -393,7 +396,7 @@ func processImagesPDF(ctx context.Context, job Job, out string, r *Reporter) err
 		if e != nil {
 			return fmt.Errorf("第 %d 张：%w", i+1, e)
 		}
-		if f.Scaled {
+		if f.Scaled || src.Reduced {
 			scaled++
 		}
 		pages = append(pages, PDFImage{JPEG: f.Data, Width: f.Width, Height: f.Height})

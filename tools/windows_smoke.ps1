@@ -52,7 +52,7 @@ try{
   Add-Type -AssemblyName System.Drawing
   $ico=[Drawing.Icon]::ExtractAssociatedIcon($Engine);Assert-True ($null -ne $ico) 'Embedded icon missing.';$ico.Dispose()
   $v=[Diagnostics.FileVersionInfo]::GetVersionInfo($Engine)
-  Assert-True ($v.ProductVersion -eq '2.2.0') ('Wrong product version: '+$v.ProductVersion)
+  Assert-True ($v.ProductVersion -eq '2.2.1') ('Wrong product version: '+$v.ProductVersion)
  }
  $ready=Join-Path $out 'ready.json';$dataPath=Join-Path $out 'data'
  Check-Step 'Start local server and load all embedded web assets' {
@@ -65,7 +65,7 @@ try{
    $resp=Invoke-WebRequest -UseBasicParsing -Uri ($readyInfo.address+'/'+$asset)
    Assert-True ($resp.StatusCode -eq 200 -and $resp.RawContentLength -gt 100) ('Asset missing: '+$asset)
   }
-  $config=Call-API 'config';Assert-True ($config.version -eq '2.2.0') 'Wrong API version.'
+  $config=Call-API 'config';Assert-True ($config.version -eq '2.2.1') 'Wrong API version.'
  }
  $imageSample=Join-Path $sampleRoot 'text-demo.png';$pdfSample=Join-Path $sampleRoot 'crop-demo.pdf'
  $imageOriginal=[IO.File]::ReadAllBytes($imageSample);$pdfOriginal=[IO.File]::ReadAllBytes($pdfSample)
@@ -119,7 +119,7 @@ try{
  if($serverProc){Stop-Process -Id $serverProc.Id -Force -ErrorAction SilentlyContinue}
  # This check owns only its unique session directory; exported diagnostics stay available.
  if(Test-Path -LiteralPath (Join-Path $out 'ready.json')){Remove-Item -LiteralPath (Join-Path $out 'ready.json') -Force}
- $report=[pscustomobject]@{app='ApplyKit';version='2.2.0';time=(Get-Date).ToString('o');success=$success;windows=[Environment]::OSVersion.VersionString;checks=$checks}
+ $report=[pscustomobject]@{app='ApplyKit';version='2.2.1';time=(Get-Date).ToString('o');success=$success;windows=[Environment]::OSVersion.VersionString;checks=$checks}
  [IO.File]::WriteAllText((Join-Path $out 'acceptance.json'),($report|ConvertTo-Json -Depth 10),$utf8)
  Write-Host ('Acceptance report: '+(Join-Path $out 'acceptance.json'))
 }
