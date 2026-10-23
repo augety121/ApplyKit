@@ -55,7 +55,7 @@ func workingSize(w, h, maxLong int) (int, int) {
 	return w, h
 }
 
-var errCannotFit = errors.New("达到清晰度底线后仍无法满足大小要求；请改用 JPG、放宽上限，或选择体积优先")
+var errCannotFit = errors.New("在当前格式和清晰度限制下仍无法满足大小上限；请使用自动格式与平衡策略，或裁去无关区域后重试")
 
 type SourceImage struct {
 	Image        *image.RGBA
@@ -68,19 +68,21 @@ type SourceImage struct {
 	SourceHeight int
 }
 type Fitted struct {
-	Data    []byte
-	Width   int
-	Height  int
-	Quality int
-	Format  string
-	Scaled  bool
+	Data           []byte
+	Width          int
+	Height         int
+	Quality        int
+	Format         string
+	Scaled         bool
+	TargetPriority bool
 }
 type FitOptions struct {
-	Limit      int64
-	Format     string
-	MaxQuality int
-	MinQuality int
-	MinLong    int
+	Limit         int64
+	Format        string
+	MaxQuality    int
+	MinQuality    int
+	MinLong       int
+	AllowFallback bool
 }
 
 func readLimited(path string) ([]byte, error) {
@@ -199,6 +201,28 @@ func encodeImage(im image.Image, format string, q int) ([]byte, error) {
 	return b.Bytes(), err
 }
 func fitImage(ctx context.Context, src *image.RGBA, opt FitOptions) (Fitted, error) {
+	f, err := fitImageCore(ctx, src, opt)
+	if !errors.Is(err, errCannotFit) || !opt.AllowFallback {
+		return f, err
+	}
+	if err := ctx.Err(); err != nil {
+		return Fitted{}, err
+	}
+	// Retain the normal profile first; relax only after its explicit size floor
+	// fails. Never silently claim the fallback retains the original clarity.
+	opt.MinQuality = min(25, opt.MinQuality)
+	if opt.MinQuality <= 0 {
+		opt.MinQuality = 25
+	}
+	opt.MinLong = 320
+	if normalizeFormat(opt.Format) != "jpg" {
+		opt.MinLong = 160
+	}
+	f, err = fitImageCore(ctx, src, opt)
+	f.TargetPriority = err == nil
+	return f, err
+}
+func fitImageCore(ctx context.Context, src *image.RGBA, opt FitOptions) (Fitted, error) {
 	var zero Fitted
 	if opt.Limit <= 0 {
 		return zero, errCannotFit

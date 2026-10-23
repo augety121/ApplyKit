@@ -9,7 +9,7 @@
 
 ## 下载与使用
 
-从 [Releases](https://github.com/augety121/ApplyKit/releases) 下载 `ApplyKit_Windows_x64_v2.2.1.zip`，完整解压后双击 `ApplyKit.exe`。
+从 [Releases](https://github.com/augety121/ApplyKit/releases) 下载 `ApplyKit_Windows_x64_v2.2.2.zip`，完整解压后双击 `ApplyKit.exe`。
 
 1. 选择工具，添加文件、文件夹，或直接拖入材料。
 2. 点击文件查看预览；需要时编辑裁剪、旋转或翻转。
@@ -19,6 +19,10 @@
 首次打开可点击 **“载入示例，体验完整流程”**。示例是软件内置的合成测试材料，不含个人数据。
 
 运行需要 Microsoft Edge 或 Google Chrome 承载独立应用窗口；PDF 使用 Windows PowerShell 5.1 和系统 `Windows.Data.Pdf`。成品不需要安装 Go、Python 或 Node.js。
+
+## 2.2.2 小体积压缩修复
+
+新增 100 KB 快捷选项。默认平衡策略在原清晰度底线无法达标时继续压缩；自动格式必要时转 JPG，结果明确标注清晰度变化。PDF 压缩和图片合并按整份文件的大小校验，保留所有页面；PDF 转图片则按每张计算。
 
 ## 2.2.1 扫描图修复
 
@@ -58,7 +62,7 @@ powershell.exe -NoLogo -NoProfile -STA -ExecutionPolicy RemoteSigned -File ./too
 ./tools/package.ps1
 ```
 
-输出 `dist/ApplyKit.exe` 与 `dist/ApplyKit_Windows_x64_v2.2.1.zip`。默认不生成校验和清单。`build.ps1` 会执行 Go 测试和 `go vet`；前端修改后还应执行：
+输出 `dist/ApplyKit.exe` 与 `dist/ApplyKit_Windows_x64_v2.2.2.zip`。默认不生成校验和清单。`build.ps1` 会执行 Go 测试和 `go vet`；前端修改后还应执行：
 
 ```powershell
 node --check web/app.js
@@ -66,7 +70,7 @@ node --check web/ui.js
 node --check web/editor.js
 ```
 
-GitHub Actions 在 Linux / Windows 上检查核心代码，并在 Windows 上执行真实 PDF 和图片验收。版本标签 `v2.2.1` 触发构建与 Release 发布。普通用户可运行软件包中的 `运行自检.cmd`；不需要开发环境。
+GitHub Actions 在 Linux / Windows 上检查核心代码，并在 Windows 上执行真实 PDF 和图片验收。版本标签 `v2.2.2` 触发构建与 Release 发布。普通用户可运行软件包中的 `运行自检.cmd`；不需要开发环境。
 
 实际验证记录和边界见 [验收说明](docs/ACCEPTANCE.md)，开发结构见 [架构说明](docs/ARCHITECTURE.md)。
 

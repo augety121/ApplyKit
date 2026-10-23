@@ -28,7 +28,7 @@ jobs:
         shell: powershell
         run: |
           ./tools/package.ps1
-          git archive --format=zip --prefix=ApplyKit/ --output=dist/ApplyKit_Source_v2.2.1_GitHub.zip HEAD
+          git archive --format=zip --prefix=ApplyKit/ --output=dist/ApplyKit_Source_v2.2.2_GitHub.zip HEAD
           if ($LASTEXITCODE -ne 0) { throw 'Source packaging failed.' }
       - name: Publish release asset
         shell: powershell

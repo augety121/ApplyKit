@@ -1,10 +1,10 @@
-# ApplyKit 2.2.1
+# ApplyKit 2.2.2
 
 An offline Windows desktop workspace for preparing job-application PDFs and images.
 
 ![Desktop workspace](docs/ui-v22-desktop.png)
 
-Download `ApplyKit_Windows_x64_v2.2.1.zip` from [Releases](https://github.com/augety121/ApplyKit/releases), extract it, and run `ApplyKit.exe`. Windows 10/11 x64, Edge or Chrome, and Windows PowerShell 5.1 are required. End users do not need Go, Python or Node.js.
+Download `ApplyKit_Windows_x64_v2.2.2.zip` from [Releases](https://github.com/augety121/ApplyKit/releases), extract it, and run `ApplyKit.exe`. Windows 10/11 x64, Edge or Chrome, and Windows PowerShell 5.1 are required. End users do not need Go, Python or Node.js.
 
 Features include PDF-to-image conversion, automatic/manual margin cropping, image crop/rotate/flip, image compression, image-to-PDF merging and scan-PDF reconstruction. Custom exclusive byte limits range from 1 KB to 100 MB (decimal units). Originals are never overwritten.
 

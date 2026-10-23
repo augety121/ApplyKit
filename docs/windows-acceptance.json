@@ -1,7 +1,7 @@
 {
     "app":  "ApplyKit",
-    "version":  "2.2.1",
-    "time":  "2026-10-20T10:43:43.0926717+08:00",
+    "version":  "2.2.2",
+    "time":  "2026-10-23T11:44:18.3077553+08:00",
     "success":  true,
     "windows":  "Microsoft Windows NT 10.0.19045.0",
     "checks":  [
@@ -31,6 +31,10 @@
                    },
                    {
                        "name":  "Merge images to PDF, then compress the generated scan PDF",
+                       "status":  "passed"
+                   },
+                   {
+                       "name":  "100 KB image, page images and entire merged PDF",
                        "status":  "passed"
                    },
                    {

@@ -198,3 +198,6 @@ dialog { background:var(--surface); border-color:var(--line); color:var(--ink); 
 :root[data-theme="dark"] .button.primary { color:#fff; }
 .example-button { align-self:flex-end; color:var(--accent); margin:0 16px 10px; font-size:11px; }
 [hidden] { display:none!important; }
+
+.limit-information .quick-sizes { display:flex; flex-wrap:wrap; gap:6px; }
+.limit-information .quick-sizes button { flex:1 1 48px; }

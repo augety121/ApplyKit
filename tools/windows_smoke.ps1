@@ -52,7 +52,7 @@ try{
   Add-Type -AssemblyName System.Drawing
   $ico=[Drawing.Icon]::ExtractAssociatedIcon($Engine);Assert-True ($null -ne $ico) 'Embedded icon missing.';$ico.Dispose()
   $v=[Diagnostics.FileVersionInfo]::GetVersionInfo($Engine)
-  Assert-True ($v.ProductVersion -eq '2.2.1') ('Wrong product version: '+$v.ProductVersion)
+  Assert-True ($v.ProductVersion -eq '2.2.2') ('Wrong product version: '+$v.ProductVersion)
  }
  $ready=Join-Path $out 'ready.json';$dataPath=Join-Path $out 'data'
  Check-Step 'Start local server and load all embedded web assets' {
@@ -65,7 +65,7 @@ try{
    $resp=Invoke-WebRequest -UseBasicParsing -Uri ($readyInfo.address+'/'+$asset)
    Assert-True ($resp.StatusCode -eq 200 -and $resp.RawContentLength -gt 100) ('Asset missing: '+$asset)
   }
-  $config=Call-API 'config';Assert-True ($config.version -eq '2.2.1') 'Wrong API version.'
+  $config=Call-API 'config';Assert-True ($config.version -eq '2.2.2') 'Wrong API version.'
  }
  $imageSample=Join-Path $sampleRoot 'text-demo.png';$pdfSample=Join-Path $sampleRoot 'crop-demo.pdf'
  $imageOriginal=[IO.File]::ReadAllBytes($imageSample);$pdfOriginal=[IO.File]::ReadAllBytes($pdfSample)
@@ -101,8 +101,21 @@ try{
   $job=Base-Job 'images-pdf' @($one.id,$two.id);$merged=@(Run-Job $job)
   Assert-True ($merged.Count -eq 1 -and $merged[0].after -lt 2000000) 'Merged PDF limit failed.'
   $mergedFile=Upload-Sample $merged[0].output
-  $job=Base-Job 'pdf-compress' @($mergedFile.id);$job.consent=$true;$job.amount='500';$job.unit='KB'
-  $compressed=@(Run-Job $job);Assert-True ($compressed[0].after -lt 500000 -and $compressed[0].after -le $merged[0].after) 'PDF compression increased size or exceeded limit.'
+  $job=Base-Job 'pdf-compress' @($mergedFile.id);$job.consent=$true;$job.amount='100';$job.unit='KB'
+  $compressed=@(Run-Job $job);Assert-True ($compressed[0].after -lt 100000 -and $compressed[0].after -le $merged[0].after) 'PDF compression increased size or exceeded limit.'
+ }
+ Check-Step '100 KB image, page images and entire merged PDF' {
+  $job=Base-Job 'image-compress' @($imageItem.id);$job.amount='100';$job.unit='KB';$job.format='auto'
+  $records=@(Run-Job $job);Assert-True ($records[0].after -lt 100000) '100 KB image limit failed.'
+  $job=Base-Job 'pdf-images' @($pdfItem.id);$job.amount='100';$job.unit='KB'
+  $records=@(Run-Job $job);Assert-True ($records.Count -eq 3) 'PDF pages missing.'
+  foreach($rec in $records){Assert-True ($rec.after -lt 100000) '100 KB per-page limit failed.'}
+  $one=Upload-Sample $pdfRecords[0].output;$two=Upload-Sample $pdfRecords[1].output
+  $job=Base-Job 'images-pdf' @($one.id,$two.id);$job.amount='100';$job.unit='KB'
+  $records=@(Run-Job $job);Assert-True ($records[0].after -lt 100000) '100 KB whole-PDF limit failed.'
+  $smallPDF=Upload-Sample $records[0].output
+  $preview=Call-API ('preview/'+$smallPDF.id) 'POST' @{page=1;password=''}
+  Assert-True ($preview.total -eq 2) 'Native renderer found missing pages in small PDF.'
  }
  Check-Step 'Invalid size is rejected before starting a job' {
   $job=Base-Job 'pdf-images' @($pdfItem.id);$job.amount='0'
@@ -119,7 +132,7 @@ try{
  if($serverProc){Stop-Process -Id $serverProc.Id -Force -ErrorAction SilentlyContinue}
  # This check owns only its unique session directory; exported diagnostics stay available.
  if(Test-Path -LiteralPath (Join-Path $out 'ready.json')){Remove-Item -LiteralPath (Join-Path $out 'ready.json') -Force}
- $report=[pscustomobject]@{app='ApplyKit';version='2.2.1';time=(Get-Date).ToString('o');success=$success;windows=[Environment]::OSVersion.VersionString;checks=$checks}
+ $report=[pscustomobject]@{app='ApplyKit';version='2.2.2';time=(Get-Date).ToString('o');success=$success;windows=[Environment]::OSVersion.VersionString;checks=$checks}
  [IO.File]::WriteAllText((Join-Path $out 'acceptance.json'),($report|ConvertTo-Json -Depth 10),$utf8)
  Write-Host ('Acceptance report: '+(Join-Path $out 'acceptance.json'))
 }

@@ -238,7 +238,7 @@ func options(job Job, cap int64, format string) FitOptions {
 	case "tiny":
 		minQ, minL = 38, 720
 	}
-	return FitOptions{Limit: cap, Format: format, MaxQuality: 92, MinQuality: minQ, MinLong: minL}
+	return FitOptions{Limit: cap, Format: format, MaxQuality: 92, MinQuality: minQ, MinLong: minL, AllowFallback: job.Profile != "clear"}
 }
 func budget(job Job) int64 { return (job.Limit * 95) / 100 }
 func fmtSize(n int64) string {
@@ -257,6 +257,9 @@ func fitNote(f Fitted) string {
 	}
 	if f.Format == "gif" {
 		s += "；GIF 为静态 256 色"
+	}
+	if f.TargetPriority {
+		s += "；为满足大小上限已降低质量或分辨率，请放大检查文字后提交"
 	}
 	return s
 }
@@ -298,7 +301,16 @@ func processImage(ctx context.Context, job Job, input, out string, r *Reporter) 
 		}
 		return fmt.Errorf("目标大小过小，无法在清晰度底线内处理")
 	}
-	fitted, err := fitImage(ctx, prepared, options(job, cap, format))
+	opt := options(job, cap, format)
+	if job.Format == "auto" && format != "jpg" {
+		opt.AllowFallback = false
+	}
+	fitted, err := fitImage(ctx, prepared, opt)
+	if errors.Is(err, errCannotFit) && job.Format == "auto" && format != "jpg" {
+		format = "jpg"
+		formatChanged = true
+		fitted, err = fitImage(ctx, prepared, options(job, cap, format))
+	}
 	if err != nil {
 		if ctx.Err() != nil {
 			return ctx.Err()
@@ -345,6 +357,9 @@ func processImage(ctx context.Context, job Job, input, out string, r *Reporter) 
 		return err
 	}
 	note := fitNote(fitted)
+	if job.Format == "auto" && fitted.Format != sourceFormat {
+		note += "；原格式难以满足上限，已自动转为 JPG"
+	}
 	if src.Reduced {
 		note += fmt.Sprintf("；高分辨率扫描图已等比缩小处理副本（原图 %d × %d），原文件保持不变", src.SourceWidth, src.SourceHeight)
 	}
@@ -380,6 +395,7 @@ func processImagesPDF(ctx context.Context, job Job, out string, r *Reporter) err
 	}
 	pages := make([]PDFImage, 0, len(job.Inputs))
 	scaled := 0
+	fallbackPages := 0
 	for i, p := range job.Inputs {
 		if e := ctx.Err(); e != nil {
 			return e
@@ -398,6 +414,9 @@ func processImagesPDF(ctx context.Context, job Job, out string, r *Reporter) err
 		}
 		if f.Scaled || src.Reduced {
 			scaled++
+		}
+		if f.TargetPriority {
+			fallbackPages++
 		}
 		pages = append(pages, PDFImage{JPEG: f.Data, Width: f.Width, Height: f.Height})
 	}
@@ -418,6 +437,9 @@ func processImagesPDF(ctx context.Context, job Job, out string, r *Reporter) err
 	message := fmt.Sprintf("共 %d 页；按队列顺序合并；图像型 PDF（无可搜索文本层）", len(pages))
 	if scaled > 0 {
 		message += fmt.Sprintf("；%d 张已缩小像素尺寸", scaled)
+	}
+	if fallbackPages > 0 {
+		message += fmt.Sprintf("；%d 页为满足整份 PDF 上限降低质量或分辨率，请检查文字", fallbackPages)
 	}
 	r.add(Record{Input: fmt.Sprintf("%d 张图片（合计）", len(pages)), Output: p, Status: "saved", Before: totalBefore, After: int64(len(data)), Message: message})
 	return nil
@@ -664,6 +686,7 @@ func processPDFCompressWithRenderer(ctx context.Context, job Job, input, out, as
 	cap := min(budget(job), before-1)
 	var pages []PDFImage
 	var per int64
+	fallbackPages := 0
 	// Compression always uses all pages; silently dropping pages is not compression.
 	job.Pages = ""
 	e = renderer(ctx, job, input, assets, func(ev renderEvent) error {
@@ -685,6 +708,9 @@ func processPDFCompressWithRenderer(ctx context.Context, job Job, input, out, as
 			f, e := fitImage(ctx, src.Image, options(job, per, "jpg"))
 			if e != nil {
 				return e
+			}
+			if f.TargetPriority {
+				fallbackPages++
 			}
 			pages = append(pages, PDFImage{JPEG: f.Data, Width: f.Width, Height: f.Height, PageWidth: ev.PageWidth, PageHeight: ev.PageHeight})
 			r.send(Event{Kind: "status", Message: fmt.Sprintf("正在重建第 %d 页；保留所有页面，不保留文本层 / 签名", ev.Page)})
@@ -722,7 +748,11 @@ func processPDFCompressWithRenderer(ctx context.Context, job Job, input, out, as
 	if e != nil {
 		return e
 	}
-	r.add(Record{Input: input, Output: p, Status: "saved", Before: before, After: int64(len(data)), Message: fmt.Sprintf("共 %d 页；扫描版重建；文本层、表单、超链接和数字签名均不保留", len(pages))})
+	message := fmt.Sprintf("共 %d 页；扫描版重建；文本层、表单、超链接和数字签名均不保留", len(pages))
+	if fallbackPages > 0 {
+		message += fmt.Sprintf("；%d 页为满足整份 PDF 上限降低质量或分辨率，请检查文字", fallbackPages)
+	}
+	r.add(Record{Input: input, Output: p, Status: "saved", Before: before, After: int64(len(data)), Message: message})
 	return nil
 }
 func safeName(path string) string {
