@@ -13,7 +13,7 @@ import (
 	"path/filepath"
 )
 
-const version = "2.2.2"
+const version = "2.3.0"
 
 //go:embed assets/*
 var assets embed.FS

@@ -201,3 +201,7 @@ dialog { background:var(--surface); border-color:var(--line); color:var(--ink); 
 
 .limit-information .quick-sizes { display:flex; flex-wrap:wrap; gap:6px; }
 .limit-information .quick-sizes button { flex:1 1 48px; }
+
+#joinDetails { margin-top:10px; }
+[data-join="true"] .file-actions { display:grid; grid-template-columns:repeat(2,27px); gap:2px; justify-content:end; }
+[data-join="true"] .file-actions .file-order { display:contents; }

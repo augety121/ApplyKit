@@ -79,18 +79,20 @@ type runningJob struct {
 	Limit    int64              `json:"limit"`
 }
 type PreferenceMode struct {
-	Amount     string   `json:"amount"`
-	Unit       string   `json:"unit"`
-	Format     string   `json:"format"`
-	Profile    string   `json:"profile"`
-	DPI        int      `json:"dpi"`
-	Paper      string   `json:"paper"`
-	CropMode   string   `json:"cropMode"`
-	MarginMM   *float64 `json:"marginMM,omitempty"`
-	MaxEdge    int      `json:"maxEdge"`
-	Strict     bool     `json:"strict"`
-	MakeZip    bool     `json:"makeZip"`
-	TrimImages bool     `json:"trimImages"`
+	JoinImage     bool     `json:"joinImage"`
+	JoinDirection string   `json:"joinDirection"`
+	Amount        string   `json:"amount"`
+	Unit          string   `json:"unit"`
+	Format        string   `json:"format"`
+	Profile       string   `json:"profile"`
+	DPI           int      `json:"dpi"`
+	Paper         string   `json:"paper"`
+	CropMode      string   `json:"cropMode"`
+	MarginMM      *float64 `json:"marginMM,omitempty"`
+	MaxEdge       int      `json:"maxEdge"`
+	Strict        bool     `json:"strict"`
+	MakeZip       bool     `json:"makeZip"`
+	TrimImages    bool     `json:"trimImages"`
 }
 type SizePreset struct {
 	Name   string `json:"name"`
@@ -757,6 +759,10 @@ func (s *AppServer) startJob(w http.ResponseWriter, r *http.Request) {
 	}
 	if !validMode(q.Mode) || len(q.Inputs) == 0 || len(q.Inputs) > 200 {
 		apiError(w, 400, fmt.Errorf("请选择有效工具与 1～200 个材料"))
+		return
+	}
+	if e = validateJoin(q.Job); e != nil {
+		apiError(w, 400, e)
 		return
 	}
 	if e = q.Crop.validate(); e != nil {

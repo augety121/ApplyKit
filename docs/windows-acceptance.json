@@ -1,7 +1,7 @@
 {
     "app":  "ApplyKit",
-    "version":  "2.2.2",
-    "time":  "2026-10-23T11:44:18.3077553+08:00",
+    "version":  "2.3.0",
+    "time":  "2026-10-23T12:22:13.2230850+08:00",
     "success":  true,
     "windows":  "Microsoft Windows NT 10.0.19045.0",
     "checks":  [
@@ -35,6 +35,14 @@
                    },
                    {
                        "name":  "100 KB image, page images and entire merged PDF",
+                       "status":  "passed"
+                   },
+                   {
+                       "name":  "Two PDF pages and multiple images become one image under whole-image limit",
+                       "status":  "passed"
+                   },
+                   {
+                       "name":  "300 KB individual image and whole joined PDF image",
                        "status":  "passed"
                    },
                    {

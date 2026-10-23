@@ -52,7 +52,7 @@ try{
   Add-Type -AssemblyName System.Drawing
   $ico=[Drawing.Icon]::ExtractAssociatedIcon($Engine);Assert-True ($null -ne $ico) 'Embedded icon missing.';$ico.Dispose()
   $v=[Diagnostics.FileVersionInfo]::GetVersionInfo($Engine)
-  Assert-True ($v.ProductVersion -eq '2.2.2') ('Wrong product version: '+$v.ProductVersion)
+  Assert-True ($v.ProductVersion -eq '2.3.0') ('Wrong product version: '+$v.ProductVersion)
  }
  $ready=Join-Path $out 'ready.json';$dataPath=Join-Path $out 'data'
  Check-Step 'Start local server and load all embedded web assets' {
@@ -65,7 +65,7 @@ try{
    $resp=Invoke-WebRequest -UseBasicParsing -Uri ($readyInfo.address+'/'+$asset)
    Assert-True ($resp.StatusCode -eq 200 -and $resp.RawContentLength -gt 100) ('Asset missing: '+$asset)
   }
-  $config=Call-API 'config';Assert-True ($config.version -eq '2.2.2') 'Wrong API version.'
+  $config=Call-API 'config';Assert-True ($config.version -eq '2.3.0') 'Wrong API version.'
  }
  $imageSample=Join-Path $sampleRoot 'text-demo.png';$pdfSample=Join-Path $sampleRoot 'crop-demo.pdf'
  $imageOriginal=[IO.File]::ReadAllBytes($imageSample);$pdfOriginal=[IO.File]::ReadAllBytes($pdfSample)
@@ -117,6 +117,24 @@ try{
   $preview=Call-API ('preview/'+$smallPDF.id) 'POST' @{page=1;password=''}
   Assert-True ($preview.total -eq 2) 'Native renderer found missing pages in small PDF.'
  }
+ Check-Step 'Two PDF pages and multiple images become one image under whole-image limit' {
+  $job=Base-Job 'pdf-images' @($pdfItem.id);$job.pages='1-2';$job.joinImage=$true;$job.joinDirection='vertical';$job.amount='200';$job.unit='KB';$job.crop.mode='auto'
+  $records=@(Run-Job $job)
+  Assert-True ($records.Count -eq 1 -and $records[0].after -lt 200000 -and $records[0].height -gt $records[0].width) 'Two-page joined image failed.'
+  Assert-True ($records[0].message -match '2') 'Joined page count missing.'
+  $im=[Drawing.Image]::FromFile($records[0].output)
+  try{Assert-True ($im.Width -eq $records[0].width -and $im.Height -eq $records[0].height) 'Joined image cannot decode.'}finally{$im.Dispose()}
+  $one=Upload-Sample $pdfRecords[0].output;$two=Upload-Sample $pdfRecords[1].output
+  $job=Base-Job 'image-compress' @($two.id,$one.id);$job.joinImage=$true;$job.joinDirection='horizontal';$job.amount='100';$job.unit='KB'
+  $records=@(Run-Job $job)
+  Assert-True ($records.Count -eq 1 -and $records[0].after -lt 100000 -and $records[0].width -gt $records[0].height) 'Horizontal joined image or 100 KB whole-image limit failed.'
+ }
+ Check-Step '300 KB individual image and whole joined PDF image' {
+  $job=Base-Job 'image-compress' @($imageItem.id);$job.amount='300';$job.unit='KB'
+  $records=@(Run-Job $job);Assert-True ($records.Count -eq 1 -and $records[0].after -lt 300000) '300 KB image failed.'
+  $job=Base-Job 'pdf-images' @($pdfItem.id);$job.joinImage=$true;$job.pages='1-2';$job.amount='300';$job.unit='KB'
+  $records=@(Run-Job $job);Assert-True ($records.Count -eq 1 -and $records[0].after -lt 300000 -and $records[0].height -gt $records[0].width) '300 KB joined PDF image failed.'
+ }
  Check-Step 'Invalid size is rejected before starting a job' {
   $job=Base-Job 'pdf-images' @($pdfItem.id);$job.amount='0'
   $rejected=$false
@@ -132,7 +150,7 @@ try{
  if($serverProc){Stop-Process -Id $serverProc.Id -Force -ErrorAction SilentlyContinue}
  # This check owns only its unique session directory; exported diagnostics stay available.
  if(Test-Path -LiteralPath (Join-Path $out 'ready.json')){Remove-Item -LiteralPath (Join-Path $out 'ready.json') -Force}
- $report=[pscustomobject]@{app='ApplyKit';version='2.2.2';time=(Get-Date).ToString('o');success=$success;windows=[Environment]::OSVersion.VersionString;checks=$checks}
+ $report=[pscustomobject]@{app='ApplyKit';version='2.3.0';time=(Get-Date).ToString('o');success=$success;windows=[Environment]::OSVersion.VersionString;checks=$checks}
  [IO.File]::WriteAllText((Join-Path $out 'acceptance.json'),($report|ConvertTo-Json -Depth 10),$utf8)
  Write-Host ('Acceptance report: '+(Join-Path $out 'acceptance.json'))
 }

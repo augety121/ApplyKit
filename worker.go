@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"image"
 	"io"
 	"os"
 	"os/exec"
@@ -20,6 +21,9 @@ import (
 )
 
 type Job struct {
+	JoinImage     bool   `json:"joinImage"`
+	JoinDirection string `json:"joinDirection"`
+	collectPage   func(*image.RGBA) error
 	Crop          CropOptions          `json:"crop"`
 	RenderMaxLong int                  `json:"-"`
 	Mode          string               `json:"mode"`
@@ -162,6 +166,9 @@ func runJobCore(ctx context.Context, job Job, assets string, r *Reporter, render
 	if err := job.Crop.validate(); err != nil {
 		return fatal(err)
 	}
+	if err := validateJoin(job); err != nil {
+		return fatal(err)
+	}
 	if job.Mode != "pdf-images" && job.Crop.mode() != "none" {
 		return fatal(fmt.Errorf("页面裁剪仅用于 PDF 转图片，不会隐式修改其他模式"))
 	}
@@ -189,7 +196,11 @@ func runJobCore(ctx context.Context, job Job, assets string, r *Reporter, render
 	}
 	begin := time.Now()
 	r.send(Event{Kind: "status", Message: "开始处理。原始文件不会被覆盖。", Output: output})
-	if job.Mode == "images-pdf" {
+	if job.JoinImage {
+		if err = processJoinedImage(ctx, job, output, assets, r, renderer); err != nil && !errors.Is(err, context.Canceled) {
+			r.fail("合成一张图片", err)
+		}
+	} else if job.Mode == "images-pdf" {
 		if err = processImagesPDF(ctx, job, output, r); err != nil && !errors.Is(err, context.Canceled) {
 			r.fail("图片合并 PDF", err)
 		}
@@ -639,8 +650,14 @@ func processPDFImagesWithRenderer(ctx context.Context, job Job, input, out, asse
 				if ctx.Err() != nil {
 					return ctx.Err()
 				}
+				if job.collectPage != nil {
+					return er
+				}
 				r.add(Record{Input: input, Page: ev.Page, Status: "failed", Before: before, Message: fmt.Sprintf("第 %d 页裁剪失败：%v", ev.Page, er)})
 				return nil
+			}
+			if job.collectPage != nil {
+				return job.collectPage(cropped)
 			}
 			f, er := fitImage(ctx, cropped, options(job, cap, format))
 			if er != nil {

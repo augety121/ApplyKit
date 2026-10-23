@@ -9,7 +9,7 @@
 
 ## 下载与使用
 
-从 [Releases](https://github.com/augety121/ApplyKit/releases) 下载 `ApplyKit_Windows_x64_v2.2.2.zip`，完整解压后双击 `ApplyKit.exe`。
+从 [Releases](https://github.com/augety121/ApplyKit/releases) 下载 `ApplyKit_Windows_x64_v2.3.0.zip`，完整解压后双击 `ApplyKit.exe`。
 
 1. 选择工具，添加文件、文件夹，或直接拖入材料。
 2. 点击文件查看预览；需要时编辑裁剪、旋转或翻转。
@@ -19,6 +19,13 @@
 首次打开可点击 **“载入示例，体验完整流程”**。示例是软件内置的合成测试材料，不含个人数据。
 
 运行需要 Microsoft Edge 或 Google Chrome 承载独立应用窗口；PDF 使用 Windows PowerShell 5.1 和系统 `Windows.Data.Pdf`。成品不需要安装 Go、Python 或 Node.js。
+
+## 2.3.0 多页 / 多图合成一张
+
+- 在「PDF 转图片」或「图片处理」勾选「合成一张图片」。PDF 两页或多页、多张选中图片都可以输出一个 JPG / PNG。
+- 支持纵向、横向；按勾选项在列表中的顺序拼接，PDF 内按页码顺序。拖动或上移 / 下移排序。
+- 100 KB / 200 KB / 300 KB 限制作用于合成后的整张图片。只勾选一组导出，再选择下一组即可分组处理。
+- 沿用 PDF 页码范围、自动 / 统一 / 手动裁剪与图片裁剪、旋转。单张最多 100 页 / 张，工作画布不超过 3200 万像素和 12000 长边，材料多时请分组以保留文字。
 
 ## 2.2.2 小体积压缩修复
 
@@ -62,7 +69,7 @@ powershell.exe -NoLogo -NoProfile -STA -ExecutionPolicy RemoteSigned -File ./too
 ./tools/package.ps1
 ```
 
-输出 `dist/ApplyKit.exe` 与 `dist/ApplyKit_Windows_x64_v2.2.2.zip`。默认不生成校验和清单。`build.ps1` 会执行 Go 测试和 `go vet`；前端修改后还应执行：
+输出 `dist/ApplyKit.exe` 与 `dist/ApplyKit_Windows_x64_v2.3.0.zip`。默认不生成校验和清单。`build.ps1` 会执行 Go 测试和 `go vet`；前端修改后还应执行：
 
 ```powershell
 node --check web/app.js
@@ -70,7 +77,7 @@ node --check web/ui.js
 node --check web/editor.js
 ```
 
-GitHub Actions 在 Linux / Windows 上检查核心代码，并在 Windows 上执行真实 PDF 和图片验收。版本标签 `v2.2.2` 触发构建与 Release 发布。普通用户可运行软件包中的 `运行自检.cmd`；不需要开发环境。
+GitHub Actions 在 Linux / Windows 上检查核心代码，并在 Windows 上执行真实 PDF 和图片验收。版本标签 `v2.3.0` 触发构建与 Release 发布。普通用户可运行软件包中的 `运行自检.cmd`；不需要开发环境。
 
 实际验证记录和边界见 [验收说明](docs/ACCEPTANCE.md)，开发结构见 [架构说明](docs/ARCHITECTURE.md)。
 
